@@ -10,7 +10,14 @@ keywords = ["wappalyzer", "tech-detect", "web-scan", "rust", "http-analyzer", "h
 categories = ["web-programming", "command-line-utilities", "parsing"]
 readme = "README.md"
 documentation = "https://docs.rs/rswappalyzer"
-exclude = [".gitignore", "tests/**/*.txt"]  # 排除非必要文件，减小发布体积
+#exclude = [".gitignore", "tests/**/*.txt", "*.del"]  # 排除非必要文件，减小发布体积
+include = [
+    "src/**/*.rs",
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "LICENSE"
+]
 
 [lib]
 name = "rswappalyzer"
@@ -48,11 +55,3 @@ tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt", "std
 [features]
 default = ["logging"]  # 默认启用日志
 logging = ["tracing"]  # 日志特性（依赖 tracing）
-
-include = [
-    "src/**",
-    "Cargo.toml",
-    "Cargo.lock",
-    "README.md",
-    "LICENSE"
-]
