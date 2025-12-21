@@ -10,7 +10,7 @@ keywords = ["wappalyzer", "tech-detect", "web-scan", "http-analyzer", "hprobe"]
 categories = ["web-programming", "command-line-utilities", "parsing"]
 readme = "README.md"
 documentation = "https://docs.rs/rswappalyzer"
-#exclude = [".gitignore", "tests/**/*.txt", "*.del"]  # 排除非必要文件，减小发布体积
+#exclude = [".gitignore", "tests/**/*.txt", "*.del"]
 include = [
     "src/**/*.rs",
     "Cargo.toml",
