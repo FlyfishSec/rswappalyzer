@@ -108,7 +108,7 @@ async fn main() -> RswResult<()> {
 | `detect_technologies_wappalyzer_lite` | `Vec<TechnologyLite>` | Lightweight/faster detection, only name and confidence. | `Vec<TechnologyLite>` | 返回精简检测结果 |
 
 ---
-
+<!-- 
 ## Core Modules | 核心模块
 
 | Module | Responsibility | 模块 | 职责 |
@@ -121,7 +121,7 @@ async fn main() -> RswResult<()> {
 | cache | MessagePack binary cache for rule libraries | 规则库缓存 | 提供二进制缓存，减少启动耗时 |
 | detector | Core detection logic combining multi-source data | 核心检测逻辑 | 整合 HTTP/HTML/脚本资源检测技术栈 |
 
----
+--- -->
 
 ## Data Sources | 规则源
 
