@@ -119,8 +119,9 @@ pub struct TechRule {
     #[serde(default)]
     pub html: Option<serde_json::Value>,
     #[serde(default)]
-    pub script: Option<serde_json::Value>,
-    #[serde(default)]
+    pub scripts: Option<serde_json::Value>,
+    // 兼容：wappalyzergo 的 scriptSrc 字段
+    #[serde(rename = "scriptSrc", default)]
     pub script_src: Option<serde_json::Value>,
     #[serde(default)]
     pub meta: Option<HashMap<String, serde_json::Value>>,

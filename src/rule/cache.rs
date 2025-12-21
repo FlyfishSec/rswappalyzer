@@ -3,6 +3,7 @@
 
 use rmp_serde::{Serializer, from_slice};
 use serde::Serialize;
+use tracing::debug;
 
 use super::model::RuleLibrary;
 use crate::error::{RswResult, RswappalyzerError};
@@ -18,8 +19,10 @@ impl RuleCacheManager {
         let cache_data = tokio::fs::read(cache_path).await?;
 
         // MessagePack反序列化
-        let rule_lib = from_slice(&cache_data)
+        let rule_lib: RuleLibrary = from_slice(&cache_data)
             .map_err(|e| RswappalyzerError::MsgPackError(format!("反序列化失败：{}", e)))?;
+
+        debug!("缓存文件反序列化成功，技术规则数：{}，分类规则数：{}", rule_lib.tech_rules.len(), rule_lib.category_rules.len());
 
         Ok(rule_lib)
     }
@@ -32,6 +35,8 @@ impl RuleCacheManager {
         // MessagePack序列化
         rule_lib.serialize(&mut Serializer::new(&mut cache_data))
             .map_err(|e| RswappalyzerError::MsgPackError(format!("序列化失败：{}", e)))?;
+
+        debug!("规则库序列化成功，序列化后数据大小：{} 字节", cache_data.len());
 
         // 写入文件
         tokio::fs::write(cache_path, cache_data).await?;

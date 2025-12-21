@@ -133,7 +133,7 @@ impl RuleCompiler {
         let mut patterns = Vec::new();
 
         // 编译script规则
-        if let Some(script_value) = tech_rule.script.as_ref() {
+        if let Some(script_value) = tech_rule.scripts.as_ref() {
             if let Some(mut script_patterns) = Self::compile_pattern_list(Some(script_value), stats, "script")? {
                 patterns.append(&mut script_patterns);
             }
