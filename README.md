@@ -127,6 +127,9 @@ async fn main() -> RswResult<()> {
 
 The following projects are used as rule sources:
 
+- **WebAppAnalyzergo**  
+<https://github.com/projectdiscovery/wappalyzergo>
+
 - **WebAppAnalyzer**  
   <https://github.com/enthec/webappanalyzer>
 
