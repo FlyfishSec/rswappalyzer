@@ -5,10 +5,46 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use regex::Regex;
 
+#[derive(Debug, Clone)]
+pub enum Matcher {
+    Contains(String), // 包含匹配（忽略大小写）
+    StartsWith(String), // 前缀匹配（忽略大小写）
+    Regex(Regex), // 正则匹配
+}
+
+impl Matcher {
+    /// 匹配输入，返回捕获结果（正则专用）
+    pub fn captures<'a>(&'a self, input: &'a str) -> Option<regex::Captures<'a>> {
+        match self {
+            Matcher::Regex(regex) => regex.captures(input),
+            _ => None, // 字符串匹配无需捕获
+        }
+    }
+
+    /// 简单匹配判断
+    pub fn is_match(&self, input: &str) -> bool {
+        match self {
+            Matcher::Contains(s) => input.to_lowercase().contains(&s.to_lowercase()),
+            Matcher::StartsWith(s) => input.to_lowercase().starts_with(&s.to_lowercase()),
+            Matcher::Regex(regex) => regex.is_match(input),
+        }
+    }
+
+    /// 规则描述
+    pub fn describe(&self) -> &str {
+        match self {
+            Matcher::Contains(_) => "contains",
+            Matcher::StartsWith(_) => "starts_with",
+            Matcher::Regex(r) => r.as_str(),
+        }
+    }
+}
+
 /// 编译后的正则模式
 #[derive(Debug, Clone)]
 pub struct CompiledPattern {
-    pub regex: Regex,
+    //pub regex: Regex,
+    pub matcher: Matcher,
     pub confidence: u8,
     pub version_template: Option<String>,
 }

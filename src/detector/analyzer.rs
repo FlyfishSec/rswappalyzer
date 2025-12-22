@@ -34,13 +34,15 @@ impl UrlAnalyzer {
 
                 // 匹配URL模式
                 for pattern in url_patterns.iter() {
-                    if let Some(captures) = pattern.regex.captures(url) {
+                    //if let Some(captures) = pattern.regex.captures(url) {
+                    if let Some(captures) = pattern.matcher.captures(url) {
                         let version = VersionExtractor::extract(&pattern.version_template, &captures);
                         debug!(
                             "URL匹配成功：技术={}，版本={:?}，规则={}",
                             compiled_tech.name,
                             version,
-                            pattern.regex.as_str()
+                            //pattern.regex.as_str()
+                            pattern.matcher.describe()
                         );
                         DetectionUpdater::update(
                             detected,
@@ -80,14 +82,22 @@ impl HeaderAnalyzer {
 
                 // 匹配Header模式
                 for pattern in patterns {
-                    if let Some(captures) = pattern.regex.captures(header_value) {
-                        let version = VersionExtractor::extract(&pattern.version_template, &captures);
+                    //if let Some(captures) = pattern.regex.captures(header_value) {
+                    if pattern.matcher.is_match(header_value) {
+                        //let version = VersionExtractor::extract(&pattern.version_template, &captures);
+                        let version = pattern
+                            .matcher
+                            .captures(header_value)
+                            .and_then(|captures| {
+                                VersionExtractor::extract(&pattern.version_template, &captures)
+                            });
                         debug!(
                             "Header匹配成功：技术={}，Header={}，版本={:?}，规则={}",
                             compiled_tech.name,
                             header_name,
                             version,
-                            pattern.regex.as_str()
+                            //pattern.regex.as_str()
+                            pattern.matcher.describe()
                         );
                         DetectionUpdater::update(
                             detected,
@@ -120,8 +130,21 @@ impl HtmlAnalyzer {
 
             // 匹配HTML模式
             for pattern in html_patterns.iter() {
-                if let Some(captures) = pattern.regex.captures(html) {
-                    let version = VersionExtractor::extract(&pattern.version_template, &captures);
+                //if let Some(captures) = pattern.regex.captures(html) {
+                if pattern.matcher.is_match(html) {
+                    //let version = VersionExtractor::extract(&pattern.version_template, &captures);
+                    let version = pattern
+                        .matcher
+                        .captures(html)
+                        .and_then(|captures| {
+                            VersionExtractor::extract(&pattern.version_template, &captures)
+                    });
+                    debug!(
+                        "HTML匹配成功：技术={}，版本={:?}，规则={}",
+                        compiled_tech.name,
+                        version,
+                        pattern.matcher.describe()
+                    );
                     DetectionUpdater::update(
                         detected,
                         compiled_tech.name.clone(),
@@ -161,23 +184,73 @@ impl ScriptAnalyzer {
                 };
 
                 for pattern in script_patterns.iter() {
-                    if pattern.regex.is_match(src) {
+                    if pattern.matcher.is_match(src) {
                         let version = if compiled_tech.name == "jQuery" {
+                            // jQuery 版本优先来自 script src
                             jquery_version.clone()
                         } else {
-                            pattern.regex.captures(src).and_then(|cap| {
-                                VersionExtractor::extract(&pattern.version_template, &cap)
-                            })
+                            pattern
+                                .matcher
+                                .captures(src)
+                                .and_then(|caps| {
+                                    VersionExtractor::extract(&pattern.version_template, &caps)
+                                })
                         };
-
+                
+                        debug!(
+                            "Script匹配成功：技术={}，版本={:?}，规则={}",
+                            compiled_tech.name,
+                            version,
+                            pattern.matcher.describe()
+                        );
+                
                         DetectionUpdater::update(
                             detected,
                             compiled_tech.name.clone(),
                             Some(pattern.confidence),
                             version,
                         );
+                        break; // 命中一个 pattern 即可
                     }
                 }
+                
+                // for pattern in script_patterns.iter() {
+                //     if let Some(caps) = pattern.regex.captures(src) {
+                //         if pattern.matcher.is_match(src) {
+
+                //         let version = if compiled_tech.name == "jQuery" {
+                //             jquery_version.clone()
+                //         } else {
+                //             VersionExtractor::extract(&pattern.version_template, &caps)
+                //         };
+                
+                //         DetectionUpdater::update(
+                //             detected,
+                //             compiled_tech.name.clone(),
+                //             Some(pattern.confidence),
+                //             version,
+                //         );
+                //     }
+                // }
+                
+                // for pattern in script_patterns.iter() {
+                //     if pattern.regex.is_match(src) {
+                //         let version = if compiled_tech.name == "jQuery" {
+                //             jquery_version.clone()
+                //         } else {
+                //             pattern.regex.captures(src).and_then(|cap| {
+                //                 VersionExtractor::extract(&pattern.version_template, &cap)
+                //             })
+                //         };
+
+                //         DetectionUpdater::update(
+                //             detected,
+                //             compiled_tech.name.clone(),
+                //             Some(pattern.confidence),
+                //             version,
+                //         );
+                //     }
+                // }
             }
         }
     }
@@ -204,8 +277,22 @@ impl MetaAnalyzer {
                 };
 
                 for pattern in patterns {
-                    if let Some(captures) = pattern.regex.captures(content) {
-                        let version = VersionExtractor::extract(&pattern.version_template, &captures);
+                    if pattern.matcher.is_match(content) {
+                        let version = pattern
+                            .matcher
+                            .captures(content)
+                            .and_then(|captures| {
+                                VersionExtractor::extract(&pattern.version_template, &captures)
+                            });
+    
+                        debug!(
+                            "Meta匹配成功：技术={}，Meta={}，版本={:?}，规则={}",
+                            compiled_tech.name,
+                            meta_name,
+                            version,
+                            pattern.matcher.describe()
+                        );
+    
                         DetectionUpdater::update(
                             detected,
                             compiled_tech.name.clone(),
@@ -214,6 +301,18 @@ impl MetaAnalyzer {
                         );
                     }
                 }
+
+                // for pattern in patterns {
+                //     if let Some(captures) = pattern.regex.captures(content) {
+                //         let version = VersionExtractor::extract(&pattern.version_template, &captures);
+                //         DetectionUpdater::update(
+                //             detected,
+                //             compiled_tech.name.clone(),
+                //             Some(pattern.confidence),
+                //             version,
+                //         );
+                //     }
+                // }
             }
         }
     }

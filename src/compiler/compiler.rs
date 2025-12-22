@@ -10,6 +10,7 @@ use serde_json::Value;
 use tracing::debug;
 
 use super::pattern::{CompiledPattern, CompiledTechRule, CompiledRuleLibrary};
+use crate::compiler::pattern::Matcher;
 use crate::rule::{RuleLibrary, TechRule};
 use crate::error::{RswResult, RswappalyzerError};
 
@@ -220,13 +221,36 @@ impl RuleCompiler {
         cleaned_pattern = VERSION_MARKER_REGEX.replace_all(&cleaned_pattern, "").to_string();
 
         // 3. 编译正则
-        let regex = Regex::new(&cleaned_pattern)?;
+        //let regex = Regex::new(&cleaned_pattern)?;
+        // 判断匹配类型
+        let matcher = if Self::is_simple_starts_with(&cleaned_pattern) {
+            let s = cleaned_pattern[1..].to_string();
+            Matcher::StartsWith(s)
+        } else if Self::is_simple_contains(&cleaned_pattern) {
+            Matcher::Contains(cleaned_pattern)
+        } else {
+            Matcher::Regex(Regex::new(&cleaned_pattern)?)
+        };
 
         Ok(CompiledPattern {
-            regex,
+            matcher,
             confidence: 100,
             version_template,
         })
+    }
+
+    /// 判断是否为简单包含匹配（无正则特殊字符）
+    fn is_simple_contains(pattern: &str) -> bool {
+        !pattern.chars().any(|c| matches!(
+            c,
+            '.' | '*' | '+' | '?' | '(' | ')' | '[' | ']' |
+            '{' | '}' | '^' | '$' | '|' | '\\'
+        ))
+    }
+
+    /// 判断是否为前缀匹配
+    fn is_simple_starts_with(pattern: &str) -> bool {
+        pattern.starts_with('^') && Self::is_simple_contains(&pattern[1..])
     }
 
     /// 清理无效转义符
