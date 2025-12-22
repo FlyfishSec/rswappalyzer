@@ -3,7 +3,8 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer, ser::SerializeSeq};
+use tracing::warn;
 
 /// 技术检测结果（完整版本）
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,6 +90,87 @@ impl From<Technology> for TechnologyLite {
         }
     }
 }
+
+/// 自定义序列化函数：把 Vec<TechnologyLite> 序列化为 ["名称:版本", ...] 格式
+pub fn serialize_tech_lite_list<S>(tech_list: &[TechnologyLite], serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    // Vec<TechnologyLite> to Vec<String>
+    let tech_str_list: Vec<String> = tech_list
+        .iter()
+        .map(|lite| match &lite.version {
+            Some(v) if !v.is_empty() => format!("{}:{}", lite.name, v),
+            _ => lite.name.clone(),
+        })
+        .collect();
+
+    // Vec<String> to JSON 数组
+    let mut seq = serializer.serialize_seq(Some(tech_str_list.len()))?;
+    for s in tech_str_list {
+        seq.serialize_element(&s)?;
+    }
+    seq.end()
+}
+
+// pub trait TechnologyLiteExt {
+//     fn to_tech_string_list(&self) -> Vec<String>;
+//     fn to_compact(&self) -> String;
+//     fn to_pretty(&self) -> String;
+// }
+
+// impl TechnologyLiteExt for Vec<TechnologyLite> {
+//     fn to_tech_string_list(&self) -> Vec<String> {
+//         self.iter()
+//             .map(|lite| match &lite.version {
+//                 Some(v) if !v.is_empty() => format!("{}:{}", lite.name, v),
+//                 _ => lite.name.clone(),
+//             })
+//             .collect()
+//     }
+
+//     fn to_compact(&self) -> String {
+//         let tech_str_list = self
+//             .iter()
+//             .map(|lite| match &lite.version {
+//                 Some(v) if !v.is_empty() => format!("{}:{}", lite.name, v),
+//                 _ => lite.name.clone(),
+//             })
+//             .collect::<Vec<_>>();
+
+//         // to_string() 生成紧凑格式
+//         match serde_json::to_string(&serde_json::json!({
+//             "technologies": tech_str_list
+//         })) {
+//             Ok(json) => json,
+//             Err(e) => {
+//                 warn!("生成技术检测 JSON 失败: {}", e);
+//                 r#"{"technologies": []}"#.to_string()
+//             }
+//         }
+//     }
+
+//     // 美化格式的方法
+//     fn to_pretty(&self) -> String {
+//         let tech_str_list = self
+//             .iter()
+//             .map(|lite| match &lite.version {
+//                 Some(v) if !v.is_empty() => format!("{}:{}", lite.name, v),
+//                 _ => lite.name.clone(),
+//             })
+//             .collect::<Vec<_>>();
+
+//         match serde_json::to_string_pretty(&serde_json::json!({
+//             "technologies": tech_str_list
+//         })) {
+//             Ok(json) => json,
+//             Err(e) => {
+//                 warn!("生成技术检测 JSON 失败: {}", e);
+//                 r#"{"technologies": []}"#.to_string()
+//             }
+//         }
+//     }
+// }
 
 // ======== 辅助函数：置信度100时不序列化 ========
 fn is_default_confidence(conf: &u8) -> bool {
