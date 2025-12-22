@@ -27,13 +27,6 @@ Add this to your `Cargo.toml`:
 cargo add rswappalyzer
 ```
 
-Or manually:
-
-```toml
-[dependencies]
-rswappalyzer = "0.1.0"
-```
-
 ## Quick Start | 快速开始
 
 ### Example 1 | 示例 1
@@ -169,7 +162,7 @@ async fn main() -> RswResult<()> {
     println!("\nPretty JSON | 美化格式 JSON:");
     println!("{}", pretty_json);
 
-    // 6. 方法4：结合业务结构体序列化（核心场景）
+    // 6. 方法4：结合业务结构体序列化
     let scan_result = ScanResult {
         url: "https://example.com".to_string(),
         port: 443,
