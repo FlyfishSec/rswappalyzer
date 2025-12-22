@@ -8,8 +8,8 @@ pub use self::config::{GlobalConfig, ConfigManager, CustomConfigBuilder};
 
 // 导出规则模块核心接口
 pub use self::rule::{
-    Technology, TechnologyLite, TechnologyLiteExt, serialize_tech_lite_list, TechRule, CategoryRule, RuleLibrary,
-    RuleLoader, RuleCacheManager
+    Technology, TechnologyLite, RuleLoader, RuleCacheManager,
+    serialize_tech_lite_list, tech_lite_to_compact_json, tech_lite_to_pretty_json, tech_lite_to_string_list, TechRule, CategoryRule, RuleLibrary,
 };
 
 // 导出提取模块核心接口

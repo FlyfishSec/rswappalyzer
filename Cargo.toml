@@ -1,6 +1,6 @@
 [package]
 name = "rswappalyzer"
-version = "0.1.1"
+version = "0.1.11-dev"
 edition = "2024"
 authors = ["FlyfishSec <adwinistrator@foxmail.com>"]
 description = "A high-performance Rust implementation of Wappalyzer for fast website technology stack detection. 高性能 Wappalyzer Rust 实现，基于流式 HTML 解析与优化匹配，适用于爬虫、安全扫描与监控系统。"

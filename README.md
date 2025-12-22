@@ -36,7 +36,7 @@ rswappalyzer = "0.1.0"
 
 ## Quick Start | 快速开始
 
-<!-- ### Basic Usage | 基础用法 -->
+### Example 1 | 示例 1
 
 ```rust
 use rswappalyzer::{
@@ -95,6 +95,90 @@ async fn main() -> RswResult<()> {
             tech.confidence
         );
     }
+
+    Ok(())
+}
+```
+
+### Example 2 | 示例 2
+
+```rust
+use rswappalyzer::{
+    init_wappalyzer,
+    detect_technologies_wappalyzer_lite,
+    rule::{
+        TechnologyLite, 
+        serialize_tech_lite_list, 
+        tech_lite_to_string_list, 
+        tech_lite_to_compact_json, 
+        tech_lite_to_pretty_json
+    },
+    RswResult,
+};
+use reqwest::header::HeaderMap;
+use serde::{Serialize, Deserialize};
+use serde_json;
+
+// 模拟业务扫描结果结构体（贴近实际开发场景）
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScanResult {
+    pub url: String,
+    pub port: u16,
+    pub status_code: u16,
+    // 使用自定义序列化函数，序列化后转为 ["名称:版本", ...] 格式
+    #[serde(serialize_with = "serialize_tech_lite_list")]
+    pub technologies: Vec<TechnologyLite>,
+}
+
+#[tokio::main]
+async fn main() -> RswResult<()> {
+    // 1. 初始化 + 准备数据（同基础用法）
+    init_wappalyzer().await?;
+    let mut headers = HeaderMap::new();
+    headers.insert("Server", "Apache/2.4.41".parse()?);
+    headers.insert("X-Powered-By", "PHP/7.4.0".parse()?);
+    let urls = &["https://example.com"];
+    let body = r#"
+        <html>
+            <head>
+                <meta name="generator" content="WordPress 6.4">
+            </head>
+            <body>
+                <script src="/static/js/jquery-3.7.1.min.js"></script>
+            </body>
+        </html>
+    "#.as_bytes();
+
+    // 2. 获取精简检测结果
+    let lite_techs: Vec<TechnologyLite> = detect_technologies_wappalyzer_lite(&headers, urls, body)?;
+
+    // 3. 方法1：转为 String 列表（可用于遍历/筛选/手动拼接）
+    let tech_str_list = tech_lite_to_string_list(&lite_techs);
+    println!("\nTechnology String List | 技术字符串列表:");
+    for (idx, tech_str) in tech_str_list.iter().enumerate() {
+        println!("{}. {}", idx + 1, tech_str);
+    }
+
+    // 4. 方法2：生成紧凑 JSON 字符串（适合 API 传输/文件存储）
+    let compact_json = tech_lite_to_compact_json(&lite_techs);
+    println!("\nCompact JSON | 紧凑格式 JSON:");
+    println!("{}", compact_json);
+
+    // 5. 方法3：生成美化 JSON 字符串（适合调试/日志打印）
+    let pretty_json = tech_lite_to_pretty_json(&lite_techs);
+    println!("\nPretty JSON | 美化格式 JSON:");
+    println!("{}", pretty_json);
+
+    // 6. 方法4：结合业务结构体序列化（核心场景）
+    let scan_result = ScanResult {
+        url: "https://example.com".to_string(),
+        port: 443,
+        status_code: 200,
+        technologies: lite_techs,
+    };
+    let business_json = serde_json::to_string_pretty(&scan_result)?;
+    println!("\nBusiness Scan Result JSON | 业务扫描结果 JSON:");
+    println!("{}", business_json);
 
     Ok(())
 }

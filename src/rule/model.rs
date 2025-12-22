@@ -113,68 +113,47 @@ where
     seq.end()
 }
 
-// pub trait TechnologyLiteExt {
-//     fn to_tech_string_list(&self) -> Vec<String>;
-//     fn to_compact(&self) -> String;
-//     fn to_pretty(&self) -> String;
-// }
-
-// impl TechnologyLiteExt for Vec<TechnologyLite> {
-//     fn to_tech_string_list(&self) -> Vec<String> {
-//         self.iter()
-//             .map(|lite| match &lite.version {
-//                 Some(v) if !v.is_empty() => format!("{}:{}", lite.name, v),
-//                 _ => lite.name.clone(),
-//             })
-//             .collect()
-//     }
-
-//     fn to_compact(&self) -> String {
-//         let tech_str_list = self
-//             .iter()
-//             .map(|lite| match &lite.version {
-//                 Some(v) if !v.is_empty() => format!("{}:{}", lite.name, v),
-//                 _ => lite.name.clone(),
-//             })
-//             .collect::<Vec<_>>();
-
-//         // to_string() 生成紧凑格式
-//         match serde_json::to_string(&serde_json::json!({
-//             "technologies": tech_str_list
-//         })) {
-//             Ok(json) => json,
-//             Err(e) => {
-//                 warn!("生成技术检测 JSON 失败: {}", e);
-//                 r#"{"technologies": []}"#.to_string()
-//             }
-//         }
-//     }
-
-//     // 美化格式的方法
-//     fn to_pretty(&self) -> String {
-//         let tech_str_list = self
-//             .iter()
-//             .map(|lite| match &lite.version {
-//                 Some(v) if !v.is_empty() => format!("{}:{}", lite.name, v),
-//                 _ => lite.name.clone(),
-//             })
-//             .collect::<Vec<_>>();
-
-//         match serde_json::to_string_pretty(&serde_json::json!({
-//             "technologies": tech_str_list
-//         })) {
-//             Ok(json) => json,
-//             Err(e) => {
-//                 warn!("生成技术检测 JSON 失败: {}", e);
-//                 r#"{"technologies": []}"#.to_string()
-//             }
-//         }
-//     }
-// }
-
 // ======== 辅助函数：置信度100时不序列化 ========
 fn is_default_confidence(conf: &u8) -> bool {
     *conf == 100
+}
+/// 公共辅助函数：将 Vec<TechnologyLite> 转为 Vec<String>（["名称:版本", ...]）
+pub fn tech_lite_to_string_list(tech_list: &[TechnologyLite]) -> Vec<String> {
+    tech_list
+        .iter()
+        .map(|lite| match &lite.version {
+            Some(v) if !v.is_empty() => format!("{}:{}", lite.name, v),
+            _ => lite.name.clone(),
+        })
+        .collect()
+}
+
+/// 公共辅助函数：生成包含 technologies 的紧凑 JSON 字符串
+pub fn tech_lite_to_compact_json(tech_list: &[TechnologyLite]) -> String {
+    let tech_str_list = tech_lite_to_string_list(tech_list);
+    match serde_json::to_string(&serde_json::json!({
+        "technologies": tech_str_list
+    })) {
+        Ok(json) => json,
+        Err(e) => {
+            warn!("生成技术检测 JSON 失败: {}", e);
+            r#"{"technologies": []}"#.to_string()
+        }
+    }
+}
+
+/// 公共辅助函数：生成包含 technologies 的美化 JSON 字符串
+pub fn tech_lite_to_pretty_json(tech_list: &[TechnologyLite]) -> String {
+    let tech_str_list = tech_lite_to_string_list(tech_list);
+    match serde_json::to_string_pretty(&serde_json::json!({
+        "technologies": tech_str_list
+    })) {
+        Ok(json) => json,
+        Err(e) => {
+            warn!("生成技术检测 JSON 失败: {}", e);
+            r#"{"technologies": []}"#.to_string()
+        }
+    }
 }
 
 /// 技术规则定义（从 Wappalyzer JSON 解析）
