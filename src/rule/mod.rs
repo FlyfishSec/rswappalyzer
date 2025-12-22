@@ -6,7 +6,7 @@ pub mod loader;
 
 // 导出核心接口
 pub use self::model::{
-    Technology, TechnologyLite, TechRule, CategoryRule, RuleLibrary
+    Technology, TechnologyLite, TechnologyLiteExt, serialize_tech_lite_list, TechRule, CategoryRule, RuleLibrary
 };
 pub use self::loader::RuleLoader;
 pub use self::cache::RuleCacheManager;

@@ -8,7 +8,7 @@ pub use self::config::{GlobalConfig, ConfigManager, CustomConfigBuilder};
 
 // 导出规则模块核心接口
 pub use self::rule::{
-    Technology, TechnologyLite, TechRule, CategoryRule, RuleLibrary,
+    Technology, TechnologyLite, TechnologyLiteExt, serialize_tech_lite_list, TechRule, CategoryRule, RuleLibrary,
     RuleLoader, RuleCacheManager
 };
 
