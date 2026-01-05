@@ -1,0 +1,5 @@
+/target
+src/rswappalyzer_rules.rs
+*.del
+*.bak
+*.old
