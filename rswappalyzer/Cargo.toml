@@ -108,14 +108,14 @@ remote-loader = ["dep:reqwest", "dep:tokio"]
 cli = ["dep:clap"]
 tracing = ["dep:tracing", "dep:tracing-log"]
 
-[[example]]
-name = "local_detect_demo"
-required-features = ["embedded-rules"]
+#[[example]]
+#name = "local_detect_demo"
+#required-features = ["embedded-rules"]
 
-[[example]]
-name = "benchmark_demo2"
-required-features = ["embedded-rules"]
+#[[example]]
+#name = "benchmark_demo2"
+#required-features = ["embedded-rules"]
 
-[[example]]
-name = "remote_detect_demo"
-required-features = ["remote-loader"]
+#[[example]]
+#name = "remote_detect_demo"
+#required-features = ["remote-loader"]
