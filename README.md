@@ -63,6 +63,10 @@ Output:
 cargo run --release --example benchmark_detect_concurrent
 ```
 
+## Enjoy it! 🚀
+
+Happy hacking with rswappalyzer!
+
 ## Data Sources | 规则源
 
 The following projects are used as rule sources:
