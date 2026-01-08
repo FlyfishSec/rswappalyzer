@@ -13,6 +13,9 @@ readme = "README.md"
 include = [
     "src/**/*.rs",
     "build.rs",
+    "build_config.json",
+    "data/rswappalyzer_rules.json",
+    "data/categories_data.json",
     "Cargo.toml",
     "README.md",
     "LICENSE"
