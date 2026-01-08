@@ -1,15 +1,17 @@
 use crate::{
-    cleaner::RuleCleaner,
-    core::{MatchScope, RuleLibrary, TechBasicInfo},
-    indexer::{CommonIndexedRule, RuleLibraryIndex, ScopedIndexedRule},
+    CoreResult, cleaner::RuleCleaner, core::{MatchScope, RuleLibrary, TechBasicInfo}, indexer::{CommonIndexedRule, RuleLibraryIndex, ScopedIndexedRule}
 };
-use std::error::Error;
 
 /// 规则处理器，核心职责：清洗规则 + 构建索引 + 统计调试
 #[derive(Default)]
 pub struct RuleProcessor;
 
 impl RuleProcessor {
+    // Embedded模式加载规则
+    pub fn load_embedded(&self) -> CoreResult<RuleLibrary> {
+        Ok(RuleLibrary::default())
+    }
+
     /// 构建索引库
     pub fn build_index(&self, rule_lib: &RuleLibrary) -> RuleLibraryIndex {
         let mut index = RuleLibraryIndex::default();
@@ -66,7 +68,7 @@ impl RuleProcessor {
             index.rules.get(scope).map_or(0, |rules| rules.len())
         };
 
-        println!(
+        log::debug!(
             "索引构建完成：URL={}, HTML={}, Script={}, ScriptSrc={}, Meta={}, Header={}, Cookie={}, Js={}",
             get_rule_count(&MatchScope::Url),
             get_rule_count(&MatchScope::Html),
@@ -82,10 +84,39 @@ impl RuleProcessor {
     }
 
     /// 清理并构建索引
-    pub fn clean_and_split_rules(&self, rule_lib: &RuleLibrary) -> Result<RuleLibrary, Box<dyn Error>> {
+    pub fn clean_and_split_rules(&self, rule_lib: &RuleLibrary) -> CoreResult<RuleLibrary> {
         let cleaner = RuleCleaner::default();
         let cleaned_rule_lib = cleaner.clean(rule_lib)?;
         self.build_index(&cleaned_rule_lib);
         Ok(cleaned_rule_lib)
     }
+
+    /// Script 规则统计
+    pub fn debug_count_script_rules(&self, rule_lib: &RuleLibrary) {
+        let mut has_script = 0;
+        let mut has_script_src = 0;
+        let mut script_patterns = 0;
+        let mut script_src_patterns = 0;
+    
+        for tech_rule in rule_lib.core_tech_map.values() {
+            if let Some(rule_set) = tech_rule.match_rules.get(&MatchScope::Script) {
+                has_script += 1;
+                script_patterns += rule_set.list_patterns.len();
+            }
+    
+            if let Some(rule_set) = tech_rule.match_rules.get(&MatchScope::ScriptSrc) {
+                has_script_src += 1;
+                script_src_patterns += rule_set.list_patterns.len();
+            }
+        }
+    
+        log::debug!("===== Script 规则统计 =====");
+        log::debug!("  技术规则总数：{}", rule_lib.core_tech_map.len());
+        log::debug!("  有 Script 的技术数：{}", has_script);
+        log::debug!("  有 ScriptSrc 的技术数：{}", has_script_src);
+        log::debug!("  Script 规则数：{}", script_patterns);
+        log::debug!("  ScriptSrc 规则数：{}", script_src_patterns);
+        log::debug!("  脚本规则总数：{}", script_patterns + script_src_patterns);
+    }
+
 }

@@ -1,6 +1,8 @@
+use rswappalyzer_engine::{CompiledPattern, CompiledRuleLibrary, CompiledTechRule, scope_pruner::PruneScope};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{CompiledRuleLibrary, VersionExtractor, analyzer::{Analyzer, common::handle_match_success}, rule::indexer::index_pattern::{CompiledPattern, CompiledTechRule}, utils::regex_filter::scope_pruner::PruneScope};
+use crate::{VersionExtractor, analyzer::{Analyzer, common::handle_match_success}};
+
 
 // Header 分析器
 pub struct HeaderAnalyzer;
@@ -26,7 +28,7 @@ impl Analyzer<FxHashMap<String, Vec<CompiledPattern>>, FxHashMap<String, String>
             let mut matched_rule = String::new();
 
             for pattern in patterns {
-                let matcher = pattern.exec.matcher.to_matcher();
+                let matcher = pattern.exec.get_matcher();
                 if matcher.is_exists() {
                     if header_val.is_some() {
                         matched = true;

@@ -1,372 +1,297 @@
+//! Remote rule fetcher module
+//! 远程规则拉取工具
+//! 核心特性：
+//! 1. 纯异步设计（无block_on，基于tokio异步运行时）
+//! 2. 可配置重试策略（Never/Times(n)）
+//! 3. ETag缓存控制（支持弱ETag解析，W/前缀和引号处理）
+//! 4. 特性条件编译（remote-loader特性控制功能开关）
+//! 5. 鲁棒的错误处理（详细错误上下文，友好日志提示）
 
-use std::fs;
-use std::path::{Path, PathBuf};
-use log::{debug};
-use crate::{RuleConfig};
 use crate::error::{RswResult, RswappalyzerError};
 use crate::rule::loader::ETagRecord;
-use crate::rule::loader::path_manager::RulePathManager;
-use crate::rule::loader::remote_source::{RemoteRuleSource};
-use crate::rule::core::{RuleLibrary};
-use crate::rule::source::wappalyzer_go::original::WappalyzerOriginalRuleLibrary;
-use crate::rule::transformer::{RuleTransformer, WappalyzerGoTransformer};
-use crate::{WappalyzerGoParser};
-use crate::rule::source::RuleFileType;
+#[cfg(feature = "remote-loader")]
+use reqwest::Client;
+use rswappalyzer_engine::RuleLibrary;
+use std::path::Path;
 
-/// 远程规则拉取器（专门处理远程规则的获取与本地原始文件保存）
+/// 远程规则拉取器
+/// 设计：无状态工具类，专注于远程规则的拉取、ETag获取和重试逻辑
 #[derive(Default)]
-pub struct RemoteRuleFetcher {
-    path_manager: RulePathManager,
-}
+pub struct RemoteRuleFetcher;
 
 impl RemoteRuleFetcher {
-    // 通用重试执行器
+    /// 通用异步重试逻辑（纯异步，无阻塞）
+    /// 特性：
+    /// 1. 可配置最大重试次数
+    /// 2. 指数退避（固定1秒间隔，可扩展）
+    /// 3. 保留最后一次错误信息
+    /// 4. 异步闭包支持（FnMut返回Future）
+    /// 参数：
+    /// - max_retries: 最大重试次数（0表示不重试）
+    /// - func: 异步闭包，返回RswResult<T>
+    /// 返回：执行结果 | 最后一次错误
     #[cfg(feature = "remote-loader")]
-    async fn with_retry<F, T>(&self, retry_policy: &crate::RetryPolicy, mut func: F) -> RswResult<T>
+    #[cfg(feature = "remote-loader")]
+    async fn simple_retry<F, Fut, T>(&self, max_retries: usize, mut func: F) -> RswResult<T>
     where
-        F: FnMut() -> tokio::task::JoinHandle<RswResult<T>>,
+        // 泛型约束：func 返回一个 Send + 'static 的 Future
+        F: FnMut() -> Fut,
+        Fut: std::future::Future<Output = RswResult<T>> + Send + 'static,
     {
-        let max_retries = match retry_policy {
-            RetryPolicy::Never => 0,
-            RetryPolicy::Times(n) => *n as usize,
-        };
-
         let mut last_err: Option<RswappalyzerError> = None;
-        // 执行：1次主请求 + N次重试
+
         for attempt in 0..=max_retries {
-            match func().await? {
-                Ok(res) => {
-                    if attempt > 0 {
-                        info!("请求重试成功，第{}次重试", attempt);
-                    }
-                    return Ok(res);
-                }
+            match func().await {
+                Ok(res) => return Ok(res),
                 Err(e) => {
                     last_err = Some(e);
-                    if attempt >= max_retries {
-                        break;
+                    if attempt < max_retries {
+                        log::warn!(
+                            "Request failed, retrying (attempt {}/{})",
+                            attempt + 1,
+                            max_retries
+                        );
+                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     }
-                    log::warn!("⚠️ 请求失败，准备第{}次重试，错误：{}", attempt + 1, last_err.as_ref().unwrap());
-                    // 指数退避：每次重试间隔 1s * 2^attempt，避免高频重试
-                    tokio::time::sleep(std::time::Duration::from_secs(1 << attempt)).await;
                 }
             }
         }
 
         Err(last_err.unwrap_or_else(|| {
-            RswappalyzerError::RuleLoadError("请求重试耗尽，无错误信息".to_string())
+            RswappalyzerError::RuleLoadError("All retry attempts exhausted".to_string())
         }))
     }
 
-    /// 获取远程资源的 ETag
+    /// 获取远程资源的ETag（纯异步）
+    /// 特性：
+    /// 1. HEAD请求（轻量，仅获取Header）
+    /// 2. 支持弱ETag解析（移除W/前缀和引号）
+    /// 3. 重试策略适配（Never/Times(n)）
+    /// 4. 友好错误处理（失败时返回Ok(None)，而非直接报错）
+    /// 参数：
+    /// - client: reqwest异步客户端
+    /// - url: 远程资源URL
+    /// - retry_policy: 重试策略
+    /// 返回：ETag字符串（Option） | 错误（仅严重错误）
     #[cfg(feature = "remote-loader")]
-    pub async fn get_remote_etag(&self, client: &reqwest::Client, url: &str, retry_policy: &RetryPolicy) -> RswResult<Option<String>> {
-        let url_clone = url.to_string();
-        let result = self.with_retry(retry_policy, || {
-            let client_inner = client.clone();
-            let url_inner = url_clone.clone();
-            tokio::spawn(async move {
-                let response = client_inner.head(&url_inner)
-                    .header("User-Agent", "Rswappalyzer/0.1.0")
-                    .send()
-                    .await?;
+    pub async fn get_remote_etag(
+        &self,
+        client: &Client,
+        url: &str,
+        retry_policy: &crate::RetryPolicy,
+    ) -> RswResult<Option<String>> {
+        // 解析重试次数
+        let max_retries = match retry_policy {
+            crate::RetryPolicy::Never => 0,
+            crate::RetryPolicy::Times(n) => *n as usize,
+        };
 
-                if !response.status().is_success() {
-                    return Err(RswappalyzerError::RuleLoadError(format!(
-                        "URL {} 返回状态码 {}",
-                        url_inner, response.status()
-                    )));
-                }
+        let result = self
+            .simple_retry(max_retries, || {
+                // 捕获上下文变量（clone避免生命周期问题）
+                let client = client.clone();
+                let url = url.to_string();
 
-                let etag = response.headers()
-                    .get(reqwest::header::ETAG)
-                    .ok_or_else(|| RswappalyzerError::RuleLoadError(format!("URL {} 未返回 ETag 头", url_inner)))?
-                    .to_str()?
-                    .trim_start_matches("W/")
-                    .trim_matches('"')
-                    .to_string();
+                // 返回异步闭包
+                Box::pin(async move {
+                    // 发送HEAD请求获取ETag
+                    let response = client
+                        .head(&url)
+                        .header("User-Agent", "Rswappalyzer/0.1.0")
+                        .send()
+                        .await
+                        .map_err(|e| {
+                            RswappalyzerError::RuleLoadError(format!(
+                                "Failed to request ETag: {:#?}",
+                                e
+                            ))
+                        })?;
 
-                Ok(etag)
+                    // 检查响应状态码
+                    if !response.status().is_success() {
+                        return Err(RswappalyzerError::RuleLoadError(format!(
+                            "Failed to get ETag: URL {} returned status code {}",
+                            url,
+                            response.status()
+                        )));
+                    }
+
+                    // 提取并解析ETag
+                    let etag = response
+                        .headers()
+                        .get(reqwest::header::ETAG)
+                        .ok_or_else(|| {
+                            RswappalyzerError::RuleLoadError(format!(
+                                "URL {} did not return ETag header",
+                                url
+                            ))
+                        })?
+                        .to_str()
+                        .map_err(|e| {
+                            RswappalyzerError::RuleLoadError(format!(
+                                "Failed to convert ETag to string: {}",
+                                e
+                            ))
+                        })?;
+
+                    // 清理ETag（移除W/前缀和引号）
+                    let etag_clean = etag.trim_start_matches("W/").trim_matches('"').to_string();
+
+                    Ok(etag_clean)
+                })
             })
-        }).await;
+            .await;
 
+        // 处理结果：成功返回Some(ETag)，失败返回None（记录警告）
         match result {
-            Ok(etag) => Ok(Some(etag)),
+            Ok(etag) => {
+                log::debug!("Successfully fetched ETag for URL [{}]: {}", url, etag);
+                Ok(Some(etag))
+            }
             Err(e) => {
-                log::warn!("获取 URL [{}] ETag 失败：{}", url, e);
+                log::warn!("Failed to fetch ETag for URL [{}]: {}", url, e);
                 Ok(None)
             }
         }
     }
 
-    /// 判断是否使用本地文件 - 无修改
-    pub fn should_use_local_file(&self, local_record: &Option<ETagRecord>, remote_etag: &str) -> bool {
-        if let Some(local_record) = local_record {
-            let is_etag_match = local_record.etag == remote_etag;
-            let local_file_exists = Path::new(&local_record.local_file_path).exists();
-            is_etag_match && local_file_exists
-        } else {
-            false
-        }
-    }
-
-    /// 从本地原始文件加载规则 ✅ 修复 GlobalConfig → RuleConfig
-    pub async fn load_from_local_raw_file(
-        &self,
-        config: &RuleConfig,
-        source: &RemoteRuleSource,
-    ) -> RswResult<RuleLibrary> {
-        let local_path = self.path_manager.generate_local_raw_file_path(config, source);
-        if !local_path.exists() {
-            return Err(RswappalyzerError::RuleLoadError(format!(
-                "本地原始文件不存在：{}",
-                local_path.display()
-            )));
-        }
-    
-        debug!("从本地原始文件加载 [{}]：{}", source.name, local_path.display());
-        let bytes = fs::read(&local_path)?;
-    
-        // 1. 解析原始规则（不再直接转为 RuleLibrary）
-        let any_result = source.parser.parse_from_bytes(&bytes)?;
-        
-        // 2. 根据源类型转换为标准 RuleLibrary（核心修复）
-        let rule_lib = match source.rule_file_type {
-            RuleFileType::WappalyzerGoJson => {
-                let original_lib: Box<WappalyzerOriginalRuleLibrary> = any_result
-                    .downcast::<WappalyzerOriginalRuleLibrary>()
-                    .map_err(|_| RswappalyzerError::RuleLoadError(
-                        "解析器返回类型不匹配，无法转换为 WappalyzerOriginalRuleLibrary".to_string()
-                    ))?;
-                
-                let transformer = WappalyzerGoTransformer::new(*original_lib);
-                transformer.transform()?
-            }
-            RuleFileType::FingerprintHubJson => {
-                Err(RswappalyzerError::RuleLoadError(
-                    "FingerprintHub 转换器暂未实现".to_string()
-                ))?
-            }
-            // RuleFileType::RswappalyzerMsgpack => {
-            //     let cached_lib: Box<RuleLibrary> = any_result
-            //         .downcast::<RuleLibrary>()
-            //         .map_err(|_| RswappalyzerError::RuleLoadError(
-            //             "解析器返回类型不匹配，无法转换为 RuleLibrary".to_string()
-            //         ))?;
-            //     *cached_lib
-            // }
-        };
-    
-        Ok(rule_lib)
-    }
-    
-    /// 保存远程原始文件到本地 ✅ 修复 GlobalConfig → RuleConfig
-    pub fn save_remote_raw_file(&self, config: &RuleConfig, source: &RemoteRuleSource, bytes: &[u8]) -> RswResult<PathBuf> {
-        let local_path = self.path_manager.generate_local_raw_file_path(config, source);
-        if let Some(parent) = local_path.parent() {
-            if !parent.exists() {
-                fs::create_dir_all(parent)?;
-            }
-        }
-
-        fs::write(&local_path, bytes)?;
-        debug!("远程原始文件已保存到本地：{}", local_path.display());
-        Ok(local_path)
-    }
-
-    /// 尝试拉取单个远程规则源
+    /// 拉取远程Wappalyzer规则库（纯异步）
+    /// 特性：
+    /// 1. GET请求（支持gzip/deflate压缩）
+    /// 2. 自动解析原始规则为RuleLibrary
+    /// 3. 重试策略适配
+    /// 4. 详细的日志和错误上下文
+    /// 参数：
+    /// - client: reqwest异步客户端
+    /// - url: 远程规则库URL
+    /// - retry_policy: 重试策略
+    /// 返回：解析后的RuleLibrary | 错误
     #[cfg(feature = "remote-loader")]
-    pub async fn try_fetch_single_source(
-        &self,
-        client: &Client,
-        source: &RemoteRuleSource,
-        retry_policy: &RetryPolicy,
-    ) -> RswResult<RuleLibrary> {
-        debug!("开始尝试拉取 [{}]，URL：{}", source.name, source.raw_url);
-        // 直接拉取原始URL，无代理fallback
-        let rule_lib = self.fetch_complete_rule_file(client, &source.raw_url, source, retry_policy).await?;
-        debug!("成功拉取 [{}]，规则总数：{}", source.name, rule_lib.core_tech_map.len());
-        Ok(rule_lib)
-    }
-
-    /// 拉取完整规则文件并解析
-    #[cfg(feature = "remote-loader")]
-    async fn fetch_complete_rule_file(
+    pub async fn fetch_wappalyzer_rules(
         &self,
         client: &Client,
         url: &str,
-        source: &RemoteRuleSource,
-        retry_policy: &RetryPolicy,
+        retry_policy: &crate::RetryPolicy,
     ) -> RswResult<RuleLibrary> {
-        let url_clone = url.to_string();
+        use rswappalyzer_engine::source::{
+            wappalyzer::WappalyzerOriginalRuleLibrary, WappalyzerParser,
+        };
 
-        self.with_retry(retry_policy, || {
-            let client_inner = client.clone();
-            let url_inner = url_clone.clone();
-            let source_inner = source.clone();
-            tokio::spawn(async move {
-                let response = client_inner.get(&url_inner)
-                    .header("User-Agent", "Rswappalyzer/0.1.0")
-                    .header("Accept-Encoding", "gzip, deflate")
-                    .send()
-                    .await?;
-        
-                if !response.status().is_success() {
-                    return Err(RswappalyzerError::RuleLoadError(format!(
-                        "URL {} 返回状态码 {}",
-                        url_inner, response.status()
-                    )));
-                }
-        
-                // if source_inner.rule_file_type == RuleFileType::RswappalyzerMsgpack {
-                //     return Self::parse_rswappalyzer_msgpack_static(response).await;
-                // }
-        
-                let any_result = source_inner.parser.parse_from_response(response).await?;
-                let rule_lib = match source_inner.rule_file_type {
-                    RuleFileType::WappalyzerGoJson => {
-                        let original_lib: Box<WappalyzerOriginalRuleLibrary> = any_result
-                            .downcast::<WappalyzerOriginalRuleLibrary>()
-                            .map_err(|_| RswappalyzerError::RuleLoadError(
-                                "解析器返回类型不匹配，无法转换为 WappalyzerOriginalRuleLibrary".to_string()
-                            ))?;
-                        let transformer = WappalyzerGoTransformer::new(*original_lib);
-                        transformer.transform()?
+        // 解析重试次数
+        let max_retries = match retry_policy {
+            crate::RetryPolicy::Never => 0,
+            crate::RetryPolicy::Times(n) => *n as usize,
+        };
+
+        let rule_lib = self
+            .simple_retry(max_retries, || {
+                // 捕获上下文变量
+                let client = client.clone();
+                let url = url.to_string();
+
+                // 返回异步闭包
+                Box::pin(async move {
+                    // 发送GET请求拉取规则
+                    let response = client
+                        .get(&url)
+                        .header("User-Agent", "Rswappalyzer/0.1.0")
+                        .header("Accept-Encoding", "gzip, deflate")
+                        .send()
+                        .await
+                        .map_err(|e| {
+                            RswappalyzerError::RuleLoadError(format!(
+                                "Failed to fetch rules: {:#?}",
+                                e
+                            ))
+                        })?;
+
+                    // 检查响应状态码
+                    if !response.status().is_success() {
+                        return Err(RswappalyzerError::RuleLoadError(format!(
+                            "Failed to fetch rules: URL {} returned status code {}",
+                            url,
+                            response.status()
+                        )));
                     }
-                    RuleFileType::FingerprintHubJson => {
-                        Err(RswappalyzerError::RuleLoadError(
-                            "FingerprintHub 转换器暂未实现".to_string()
-                        ))?
-                    }
-                };
-        
-                Ok(rule_lib)
+
+                    // 异步读取响应字节
+                    let bytes = response.bytes().await.map_err(|e| {
+                        RswappalyzerError::RuleLoadError(format!(
+                            "Failed to read response bytes: {}",
+                            e
+                        ))
+                    })?;
+
+                    // 解析原始规则
+                    let parser = WappalyzerParser::default();
+                    let original_lib: WappalyzerOriginalRuleLibrary =
+                        parser.parse_from_bytes(&bytes).map_err(|e| {
+                            RswappalyzerError::RuleLoadError(format!(
+                                "Failed to parse original rules: {}",
+                                e
+                            ))
+                        })?;
+
+                    // 转换为标准RuleLibrary
+                    let rule_lib = parser.convert_original_to_rule_lib(original_lib);
+                    Ok(rule_lib)
+                })
             })
-        }).await
+            .await?;
+
+        // 记录成功日志
+        log::debug!(
+            "Successfully fetched Wappalyzer rules, total tech rules: {}",
+            rule_lib.core_tech_map.len()
+        );
+
+        Ok(rule_lib)
     }
 
-    // 静态方法封装msgpack解析，解决异步闭包的生命周期问题
-    // async fn parse_rswappalyzer_msgpack_static(response: reqwest::Response) -> RswResult<RuleLibrary> {
-    //     let bytes = response.bytes().await.map_err(|e| {
-    //         RswappalyzerError::RuleLoadError(format!("读取 mp 响应体失败：{}", e))
-    //     })?;
-
-    //     let cached_rules: Vec<CachedTechRule> = from_slice(&bytes).map_err(|e| {
-    //         RswappalyzerError::RuleLoadError(format!("反序列化 mp 失败：{}", e))
-    //     })?;
-
-    //     let mut core_tech_map = HashMap::new();
-    //     let mut category_rules = HashMap::new();
-
-    //     for cached in cached_rules {
-    //         let mut match_rules: HashMap<MatchScope, MatchRuleSet> = HashMap::new();
-    //         for (scope, cached_scope_rule) in cached.rules {
-    //             let rule_set = MatchRuleSet::from_cached(&scope, cached_scope_rule);
-    //             match_rules.insert(scope, rule_set);
-    //         }
-
-    //         let parsed = ParsedTechRule {
-    //             basic: cached.basic,
-    //             match_rules,
-    //         };
-
-    //         core_tech_map.insert(
-    //             parsed.basic.tech_name.clone().expect("TechBasicInfo.tech_name 不能为空"),
-    //             parsed,
-    //         );
-    //     }
-
-    //     Ok(RuleLibrary {
-    //         core_tech_map,
-    //         category_rules,
-    //     })
-    // }
-    
-    /// 构建远程规则源列表 - 无修改
-    pub fn build_remote_sources(&self) -> Vec<RemoteRuleSource> {
-        vec![
-            RemoteRuleSource::new(
-                "wappalyzergo",
-                "https://raw.githubusercontent.com/projectdiscovery/wappalyzergo/refs/heads/main/fingerprints_data.json",
-                WappalyzerGoParser::default()
-            ),
-        ]
-    }
-
-    /// 多源合并模式拉取
-    #[cfg(feature = "remote-loader")]
-    pub async fn fetch_with_merge(
+    /// 判断是否使用本地缓存文件
+    /// 规则：
+    /// 1. 本地ETag记录存在
+    /// 2. ETag与远程一致
+    /// 3. 本地文件存在
+    /// 参数：
+    /// - local_record: 本地ETag记录（Option）
+    /// - remote_etag: 远程ETag
+    /// 返回：是否使用本地文件（true/false）
+    pub fn should_use_local_file(
         &self,
-        client: &Client,
-        remote_sources: &[RemoteRuleSource],
-        retry_policy: &RetryPolicy,
-    ) -> RswResult<RuleLibrary> {
-        let mut merged_core_tech_map: HashMap<String, ParsedTechRule> = HashMap::new();
-        let mut merged_category_rules = HashMap::new();
-
-        for source in remote_sources {
-            match self.try_fetch_single_source(client, source, retry_policy).await {
-                Ok(rule_lib) => {
-                    let prev_count = merged_core_tech_map.len();
-                    merged_core_tech_map.extend(rule_lib.core_tech_map);
-                    merged_category_rules.extend(rule_lib.category_rules);
-                    let added_count = merged_core_tech_map.len() - prev_count;
-                    debug!(
-                        "成功合并 [{}] 规则：新增 {} 条技术规则，当前总技术规则数：{}",
-                        source.name, added_count, merged_core_tech_map.len()
-                    );
-                }
-                Err(e) => {
-                    warn!("跳过无效规则源 [{}]：{}", source.name, e);
-                    continue;
-                }
-            }
-        }
-
-        if merged_core_tech_map.is_empty() {
-            return Err(RswappalyzerError::RuleLoadError(
-                "所有远程规则源（合并模式）拉取失败或无有效规则".to_string()
-            ));
-        }
-
-        Ok(RuleLibrary {
-            core_tech_map: merged_core_tech_map,
-            category_rules: merged_category_rules,
+        local_record: &Option<ETagRecord>,
+        remote_etag: &str,
+    ) -> bool {
+        local_record.as_ref().map_or(false, |r| {
+            r.etag == remote_etag && Path::new(&r.local_file_path).exists()
         })
     }
 
-    /// 优先级覆盖模式拉取
-    #[cfg(feature = "remote-loader")]
-    pub async fn fetch_with_override(
+    /// 未启用remote-loader特性时的占位实现（ETag获取）
+    /// 返回：明确的特性未启用错误
+    #[cfg(not(feature = "remote-loader"))]
+    pub async fn get_remote_etag(
         &self,
-        client: &Client,
-        remote_sources: &[RemoteRuleSource],
-        retry_policy: &RetryPolicy,
-    ) -> RswResult<RuleLibrary> {
-        for source in remote_sources {
-            match self.try_fetch_single_source(client, source, retry_policy).await {
-                Ok(rule_lib) => {
-                    return Ok(rule_lib);
-                }
-                Err(e) => {
-                    warn!("跳过无效规则源 [{}]：{}", source.name, e);
-                    continue;
-                }
-            }
-        }
-
+        _client: &(), // 空元组占位（该分支不会被实际调用）
+        _url: &str,
+        _retry_policy: &crate::RetryPolicy,
+    ) -> RswResult<Option<String>> {
         Err(RswappalyzerError::RuleLoadError(
-            "所有远程规则源（覆盖模式）拉取失败，请检查网络或URL配置".to_string()
+            "remote-loader feature is not enabled".to_string(),
         ))
     }
 
-    pub fn build_remote_sources_from_url(&self, base_url: &str) -> Vec<RemoteRuleSource> {
-        vec![
-            RemoteRuleSource::new(
-                "custom_remote",
-                base_url,
-                WappalyzerGoParser::default()
-            )
-        ]
+    /// 未启用remote-loader特性时的占位实现（规则拉取）
+    /// 返回：明确的特性未启用错误
+    #[cfg(not(feature = "remote-loader"))]
+    pub async fn fetch_wappalyzer_rules(
+        &self,
+        _client: &(), // 空元组占位（该分支不会被实际调用）
+        _url: &str,
+        _retry_policy: &crate::RetryPolicy,
+    ) -> RswResult<RuleLibrary> {
+        Err(RswappalyzerError::RuleLoadError(
+            "remote-loader feature is not enabled".to_string(),
+        ))
     }
 }

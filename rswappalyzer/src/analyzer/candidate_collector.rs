@@ -1,17 +1,20 @@
-use crate::{CompiledRuleLibrary, rule::indexer::index_pattern::MatchGate, utils::regex_filter::scope_pruner::PruneScope};
+use rswappalyzer_engine::{CompiledRuleLibrary, MatchGate, scope_pruner::PruneScope};
 use rustc_hash::FxHashSet;
 
 /// 从反向索引筛选候选技术，核心性能函数，O(1)查找
 /// 输入：规则库+令牌+当前解析维度 → 输出：去重的候选技术名称集合
+// NOTE:
+// Token-based FxHashSet lookup is O(N_tokens).
+// Substring search on raw HTML is O(N_tokens * input_len) and is forbidden here.
 pub fn collect_candidate_techs<'a>(
     compiled_lib: &'a CompiledRuleLibrary,
     input_tokens: &FxHashSet<String>,
-    scope: PruneScope, // 当前解析器对应的维度
+    scope: PruneScope,
 ) -> FxHashSet<&'a String> {
     // 调试旁路
-    if scope == PruneScope::Cookie {
-        debug_compiled_rule_library(compiled_lib, input_tokens, scope);
-    }
+    // if scope == PruneScope::Html {
+    //     debug_compiled_rule_library_old(compiled_lib, input_tokens, scope);
+    // }
 
     let mut candidates = FxHashSet::default();
     for token in input_tokens {
@@ -27,7 +30,8 @@ pub fn collect_candidate_techs<'a>(
 }
 
 /// 调试方法
-pub fn debug_compiled_rule_library(
+#[allow(dead_code)]
+pub fn debug_compiled_rule_library_old(
     compiled_lib: &CompiledRuleLibrary,
     input_tokens: &FxHashSet<String>,
     current_scope: PruneScope,
@@ -93,10 +97,10 @@ pub fn debug_compiled_rule_library(
     }
 
     // tech 调试
-    const TARGET_TECH: &str = "Slimbox";
+    const TARGET_TECH: &str = "Vue.js";
     match compiled_lib.tech_patterns.get(TARGET_TECH) {
         Some(rule) => {
-            log::debug!("[WISYCMS] 技术规则存在于规则库中");
+            log::debug!("[{}] 技术规则存在于规则库中", &TARGET_TECH);
             let min_evidence = rule
                 .meta_patterns
                 .as_ref()
@@ -106,14 +110,14 @@ pub fn debug_compiled_rule_library(
                     MatchGate::RequireAll(set) => Some(set),
                     _ => None,
                 });
-            log::debug!("[WISYCMS] Meta[generator] 最小证据集 = {:?}", min_evidence);
+            log::debug!("[{}] Meta[generator] 最小证据集 = {:?}", &TARGET_TECH, min_evidence);
             // 额外补充：该技术是否在当前维度的无证据索引中
             let in_no_evidence = compiled_lib
                 .no_evidence_index
                 .get(&current_scope)
                 .map_or(false, |techs| techs.contains(TARGET_TECH));
-            log::debug!("[WISYCMS] 是否在当前维度无证据索引中 = {}", in_no_evidence);
+            log::debug!("[{}] 是否在当前维度无证据索引中 = {}", &TARGET_TECH, in_no_evidence);
         }
-        None => log::debug!("[WISYCMS ❌] 技术规则未在规则库中找到！"),
+        None => log::debug!("[{} ❌] 技术规则未在规则库中找到！", &TARGET_TECH),
     }
 }

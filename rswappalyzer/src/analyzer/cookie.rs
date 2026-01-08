@@ -1,11 +1,7 @@
+use rswappalyzer_engine::{CompiledPattern, CompiledRuleLibrary, CompiledTechRule, scope_pruner::PruneScope};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{
-    analyzer::{common::handle_match_success, Analyzer},
-    rule::indexer::index_pattern::{CompiledPattern, CompiledTechRule},
-    utils::regex_filter::scope_pruner::PruneScope,
-    CompiledRuleLibrary, VersionExtractor,
-};
+use crate::{VersionExtractor, analyzer::{Analyzer, common::handle_match_success}};
 
 // Cookie 分析器
 pub struct CookieAnalyzer;
@@ -52,7 +48,7 @@ impl Analyzer<FxHashMap<String, Vec<CompiledPattern>>, FxHashMap<String, Vec<Str
                 let mut version: Option<String> = None;
 
                 for pattern in patterns {
-                    let matcher = pattern.exec.matcher.to_matcher();
+                    let matcher = pattern.exec.get_matcher();
                     if matcher.is_exists() {
                         // exists规则匹配成功：只要Cookie存在就命中
                         confidence = Some(pattern.exec.confidence);

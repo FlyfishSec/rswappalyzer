@@ -1,5 +1,6 @@
 {
   "raw_rules_json_path": "data/rswappalyzer_rules.json",
   "compiled_lib_output_name": "compiled_lib.bin",
-  "enable_compress": true
+  "enable_compress": true,
+  "category_json_path": "data/categories_data.json"
 }

@@ -22,6 +22,8 @@ struct BuildConfig {
     compiled_lib_output_name: String,
     /// 是否启用LZ4压缩
     enable_compress: bool,
+    /// 分类映射JSON文件路径
+    category_json_path: String,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -63,36 +65,33 @@ fn main() -> Result<(), Box<dyn Error>> {
         .clean_and_split_rules(&raw_lib)
         .map_err(|e| format!("规则清洗失败: {}", e))?;
 
-    // if let Some(slimbox_rule) = rule_library.core_tech_map.get("Slimbox") {
-    //     if let Some(html_rule_set) = slimbox_rule
-    //         .match_rules
-    //         .get(&crate::build_support::MatchScope::Html)
-    //     {
-    //         for _pattern in &html_rule_set.list_patterns {
-    //             println!(
-    //                 "cargo:warning=✅  Slimbox HTML Pattern: >{}<",
-    //                 "<link [^>]*href=\"[^/]*slimbox(?:-rtl)?\\.css\""
-    //             );
-    //         }
-    //     }
-    // }
-
     // 构建规则索引并编译为运行时库
     let rule_index = RuleLibraryIndex::from_rule_library(&rule_library)
         .map_err(|e| format!("构建规则索引失败: {}", e))?;
 
-    let compiled_lib = RuleIndexer::build_compiled_library(&rule_index)
-        .map_err(|e| format!("编译规则库失败: {}", e))?;
+    let compiled_lib =
+        RuleIndexer::build_compiled_library(&rule_index, Some(&cfg.category_json_path))
+            .map_err(|e| format!("编译规则库失败: {}", e))?;
+
+    // println!("cargo:warning=🔍 编译后库数据:");
+    // println!(
+    //     "cargo:warning=🔍 tech_patterns.len() = {}",
+    //     compiled_lib.tech_patterns.len()
+    // );
+    // println!("cargo:warning=🔍 category_map.len() = {}", compiled_lib.category_map.len());
+    // println!("cargo:warning=🔍 tech_meta.len() = {}", compiled_lib.tech_meta.len());
+    // println!("cargo:warning=🔍 evidence_index.len() = {}", compiled_lib.evidence_index.len());
+    // println!("cargo:warning=🔍 no_evidence_index.len() = {}", compiled_lib.no_evidence_index.len());
 
     // 序列化json
     let compiled_lib_bin = serde_json::to_vec(&compiled_lib)
         .map_err(|e| format!("JSON序列化编译规则库失败: {}", e))?;
 
     // 调试代码
-    let debug_json_path = Path::new("compiled_rules_debug.json");
-    fs::write(&debug_json_path, &compiled_lib_bin)
-        .map_err(|e| format!("写入调试 JSON 失败: {} - {}", debug_json_path.display(), e))?;
-    println!("✅ 调试 JSON 已写入当前目录: {}", debug_json_path.display());
+    // let debug_json_path = Path::new("compiled_rules_debug.json");
+    // fs::write(&debug_json_path, &compiled_lib_bin)
+    //     .map_err(|e| format!("写入调试 JSON 失败: {} - {}", debug_json_path.display(), e))?;
+    // println!("✅ 调试 JSON 已写入当前目录: {}", debug_json_path.display());
 
     // 根据配置选择是否进行LZ4压缩
     let compressed_lib = if cfg.enable_compress {
