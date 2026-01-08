@@ -3,6 +3,7 @@ members = [
     "rswappalyzer",
     "rswappalyzer-engine",
 ]
+resolver = "2"
 
 [workspace.dependencies]
 serde = { version = "1.0.197", features = ["derive", "rc"] }
@@ -15,3 +16,14 @@ lz4_flex = "0.11.3"
 log = "0.4.22"
 thiserror = "2.0.3"
 async-trait = "0.1.80"
+
+
+# ======================
+# Release profile
+# ======================
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+

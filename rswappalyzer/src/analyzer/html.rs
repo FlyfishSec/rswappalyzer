@@ -1,13 +1,9 @@
 use std::borrow::Cow;
 
+use rswappalyzer_engine::{CompiledPattern, CompiledRuleLibrary, CompiledTechRule, scope_pruner::PruneScope};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{
-    analyzer::{common::handle_match_success, Analyzer},
-    rule::indexer::index_pattern::{CompiledPattern, CompiledTechRule},
-    utils::regex_filter::scope_pruner::PruneScope,
-    CompiledRuleLibrary, VersionExtractor,
-};
+use crate::{VersionExtractor, analyzer::{Analyzer, common::handle_match_success}};
 
 // HTML 分析器
 pub struct HtmlAnalyzer;
@@ -30,15 +26,15 @@ impl Analyzer<[CompiledPattern], str> for HtmlAnalyzer {
         detected: &mut FxHashMap<String, (u8, Option<String>)>,
     ) {
         for pattern in patterns {
-            if tech_name == "Slimbox" {
-                log::debug!(
-                    "HTML内容: {}, Pattern内容: {}",
-                    &html,
-                    &pattern.exec.matcher.to_matcher().describe()
-                );
-            }
-            let matcher = pattern.exec.matcher.to_matcher();
-            if pattern.matches_with_prune_log(html, html_tokens) {
+            // if tech_name == "Slimbox" {
+            //     log::debug!(
+            //         "HTML内容: {}, Pattern内容: {}",
+            //         &html,
+            //         &pattern.exec.get_matcher().describe()
+            //     );
+            // }
+            let matcher = pattern.exec.get_matcher();
+            if pattern.matches_with_prune(html, html_tokens) {
             //if pattern.matches(html) {
                 let version = matcher
                     .captures(html)

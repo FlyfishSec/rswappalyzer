@@ -1,6 +1,6 @@
-// examples/benchmark_demo.rs
+// examples/benchmark_demo2.rs
 // 精准压力测试 + detect()真实性能测量版
-// 运行：cargo run --example benchmark_demo --features embedded-rules --release
+// 运行：cargo run --example benchmark_demo2 --features embedded-rules --release
 
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use rswappalyzer::{RuleConfig, RuleOrigin, TechDetector};

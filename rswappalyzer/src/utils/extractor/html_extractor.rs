@@ -205,7 +205,7 @@ mod perf_test {
         </head></html>
     "#;
 
-    // 测试次数：越大越精准，推荐10万次（Windows下耗时约1~3秒）
+    // 测试次数
     const TEST_TIMES: usize = 100_000;
 
     #[test]

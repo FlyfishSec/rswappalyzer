@@ -1,162 +1,200 @@
 use crate::cleaner::clean_stats::CleanStats;
 use crate::core::{CategoryRule, ParsedTechRule, RuleLibrary, TechBasicInfo};
-use crate::{
-    KeyedPattern, MatchCondition, MatchRuleSet, MatchScope, MatchType, Pattern,
-};
+use crate::{KeyedPattern, MatchCondition, MatchRuleSet, MatchScope, MatchType, Pattern};
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
-//use std::collections::HashMap;
-use rustc_hash::FxHashMap as HashMap;
 use std::error::Error;
 
 /// Wappalyzer 原始分类规则
+/// 对应JSON结构中的categories字段，描述技术分类信息
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct WappalyzerOriginalCategory {
+    /// 分类名称（如"CMS"、"Web Server"）
     pub name: String,
+    /// 分类优先级（可选，用于排序）
     pub priority: Option<u32>,
 }
 
 /// Wappalyzer 原始技术规则
+/// 对应JSON结构中的technologies/apps字段，描述单个技术的匹配规则
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct WappalyzerOriginalTechRule {
+    /// 技术描述（可选）
     #[serde(default)]
     pub description: Option<String>,
+    /// 技术官网地址（可选）
     #[serde(default)]
     pub website: Option<String>,
+    /// 所属分类ID列表（映射到categories）
     #[serde(rename = "cats", default)]
     pub category_ids: Vec<u32>,
+    /// 技术图标名称（可选）
     #[serde(default)]
     pub icon: Option<String>,
+    /// CPE标识（Common Platform Enumeration，可选）
     #[serde(default)]
     pub cpe: Option<String>,
+    /// 是否为SaaS服务（可选）
     #[serde(default)]
     pub saas: Option<bool>,
+    /// 定价模式（可选，如["free", "paid"]）
     #[serde(default)]
     pub pricing: Option<Vec<String>>,
 
+    /// URL匹配规则（支持字符串/数组格式，可选）
     #[serde(default)]
-    pub url: Option<serde_json::Value>,
+    pub url: Option<Value>,
+    /// HTML内容匹配规则（支持字符串/数组格式，可选）
     #[serde(default)]
-    pub html: Option<serde_json::Value>,
+    pub html: Option<Value>,
+    /// Script内容匹配规则（支持字符串/数组格式，可选）
     #[serde(default)]
-    pub scripts: Option<serde_json::Value>,
+    pub scripts: Option<Value>,
+    /// Script SRC属性匹配规则（支持字符串/数组格式，可选）
     #[serde(rename = "scriptSrc", default)]
-    pub script_src: Option<serde_json::Value>,
+    pub script_src: Option<Value>,
+    /// Meta标签匹配规则（KV结构，可选）
     #[serde(default)]
-    pub meta: Option<HashMap<String, serde_json::Value>>,
+    pub meta: Option<HashMap<String, Value>>,
+    /// HTTP头匹配规则（KV结构，可选）
     #[serde(default)]
-    pub headers: Option<HashMap<String, serde_json::Value>>,
+    pub headers: Option<HashMap<String, Value>>,
+    /// Cookie匹配规则（KV结构，可选）
     #[serde(default)]
-    pub cookies: Option<HashMap<String, serde_json::Value>>,
+    pub cookies: Option<HashMap<String, Value>>,
+    /// JS变量匹配规则（KV结构，可选）
     #[serde(default)]
-    pub js: Option<HashMap<String, serde_json::Value>>,
+    pub js: Option<HashMap<String, Value>>,
 
+    /// 隐含技术关联（支持字符串/数组格式，可选）
     #[serde(default)]
-    pub implies: Option<serde_json::Value>,
+    pub implies: Option<Value>,
 
+    /// 扩展字段（兼容未定义的JSON字段）
     #[serde(flatten)]
-    pub extra_fields: HashMap<String, serde_json::Value>,
+    pub extra_fields: HashMap<String, Value>,
 }
 
 /// Wappalyzer 原始规则库
+/// 对应完整的Wappalyzer JSON配置结构
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct WappalyzerOriginalRuleLibrary {
+    /// 技术规则集合（兼容technologies/apps两种字段名）
     #[serde(rename = "technologies", alias = "apps")]
     pub technologies: HashMap<String, WappalyzerOriginalTechRule>,
+    /// 分类规则集合（默认空）
     #[serde(default)]
     pub categories: HashMap<u32, WappalyzerOriginalCategory>,
 }
 
 /// Wappalyzer 规则解析器
+/// 职责：将Wappalyzer JSON格式规则转换为内核可识别的RuleLibrary
 #[derive(Debug, Clone, Default)]
 pub struct WappalyzerParser;
 
-#[allow(dead_code)]
 impl WappalyzerParser {
+    /// 创建解析器实例
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// 解析字符串格式的Wappalyzer规则
+    /// 参数：content - JSON字符串
+    /// 返回：原始规则库 | 解析错误
     pub fn parse(&self, content: &str) -> Result<WappalyzerOriginalRuleLibrary, Box<dyn Error>> {
         self.parse_from_str(content)
     }
 
+    /// 从字符串解析原始规则库
     pub fn parse_from_str(
         &self,
         content: &str,
     ) -> Result<WappalyzerOriginalRuleLibrary, Box<dyn Error>> {
-        serde_json::from_str(content).map_err(|e| format!("Wappalyzer JSON解析失败: {}", e).into())
+        serde_json::from_str(content)
+            .map_err(|e| format!("Failed to parse Wappalyzer JSON string: {}", e).into())
     }
 
+    /// 从字节流解析原始规则库
     pub fn parse_from_bytes(
         &self,
         bytes: &[u8],
     ) -> Result<WappalyzerOriginalRuleLibrary, Box<dyn Error>> {
         serde_json::from_slice(bytes)
-            .map_err(|e| format!("Wappalyzer 字节流解析失败: {}", e).into())
+            .map_err(|e| format!("Failed to parse Wappalyzer byte stream: {}", e).into())
     }
 
+    /// 从serde_json::Value解析原始规则库
     pub fn parse_from_value(
         &self,
-        value: &serde_json::Value,
+        value: &Value,
     ) -> Result<WappalyzerOriginalRuleLibrary, Box<dyn Error>> {
         serde_json::from_value(value.clone())
-            .map_err(|e| format!("Wappalyzer JSON Value解析失败: {}", e).into())
+            .map_err(|e| format!("Failed to parse Wappalyzer JSON Value: {}", e).into())
     }
 
+    /// 解析并转换为内核规则库
+    /// 参数：content - JSON字符串
+    /// 返回：内核规则库 | 解析/转换错误
     pub fn parse_to_rule_lib(&self, content: &str) -> Result<RuleLibrary, Box<dyn Error>> {
         let original = self.parse_from_str(content)?;
         Ok(self.convert_original_to_rule_lib(original))
     }
 
+    /// 将原始规则库转换为内核规则库
+    /// 参数：original - 原始Wappalyzer规则库
+    /// 返回：内核可识别的RuleLibrary
     pub fn convert_original_to_rule_lib(
         &self,
         original: WappalyzerOriginalRuleLibrary,
     ) -> RuleLibrary {
-        let mut clean_stats = CleanStats::default();
+        let mut _clean_stats = CleanStats::default();
 
-        // serde_json::Value 转 Vec<String>，兼容单字符串/数组两种格式
+        // 将implies字段的Value转换为字符串列表（兼容单字符串/数组格式）
         fn implies_value_to_vec(implies_val: &Option<Value>) -> Option<Vec<String>> {
             let Some(val) = implies_val else {
                 return None;
             };
+
             let mut res = Vec::new();
             match val {
                 Value::Array(arr) => {
                     for item in arr {
                         if let Value::String(s) = item {
-                            let s = s.trim().to_string();
-                            if !s.is_empty() {
-                                res.push(s);
+                            let s_trimmed = s.trim().to_string();
+                            if !s_trimmed.is_empty() {
+                                res.push(s_trimmed);
                             }
                         }
                     }
                 }
                 Value::String(s) => {
-                    let s = s.trim().to_string();
-                    if !s.is_empty() {
-                        res.push(s);
+                    let s_trimmed = s.trim().to_string();
+                    if !s_trimmed.is_empty() {
+                        res.push(s_trimmed);
                     }
                 }
                 _ => {}
             }
-            if res.is_empty() { None } else { Some(res) }
+
+            (!res.is_empty()).then_some(res)
         }
 
-        // 兼容：数组格式["xxx"] + 单字符串格式"xxx" 两种写法
+        // 将JSON Value转换为Pattern列表（兼容单字符串/数组格式）
         fn json_val_to_pattern_list(val: &Option<Value>) -> Vec<Pattern> {
             let mut patterns = Vec::new();
             let Some(val) = val else {
                 return patterns;
             };
+
             match val {
                 Value::Array(arr) => {
                     for item in arr {
                         if let Value::String(s) = item {
-                            let s = s.trim().to_string();
-                            if !s.is_empty() {
+                            let s_trimmed = s.trim().to_string();
+                            if !s_trimmed.is_empty() {
                                 patterns.push(Pattern {
-                                    pattern: s,
+                                    pattern: s_trimmed,
                                     match_type: MatchType::Contains,
                                     version_template: None,
                                 });
@@ -165,10 +203,10 @@ impl WappalyzerParser {
                     }
                 }
                 Value::String(s) => {
-                    let s = s.trim().to_string();
-                    if !s.is_empty() {
+                    let s_trimmed = s.trim().to_string();
+                    if !s_trimmed.is_empty() {
                         patterns.push(Pattern {
-                            pattern: s,
+                            pattern: s_trimmed,
                             match_type: MatchType::Contains,
                             version_template: None,
                         });
@@ -176,10 +214,11 @@ impl WappalyzerParser {
                 }
                 _ => {}
             }
+
             patterns
         }
 
-        // 批量插入列表型规则
+        // 批量插入列表型匹配规则到HashMap
         fn batch_insert_list_rules(
             match_rules: &mut HashMap<MatchScope, MatchRuleSet>,
             rules: Vec<Option<(MatchScope, MatchRuleSet)>>,
@@ -189,7 +228,7 @@ impl WappalyzerParser {
             });
         }
 
-        // ✅ 修改点1: 读取condition字段，有则用，无则默认Or (核心改动)
+        // 构建列表型匹配规则集（支持condition字段解析）
         fn build_list_match_rule_set(
             rule_obj: &Option<Value>,
             _scope_name: &str,
@@ -199,13 +238,16 @@ impl WappalyzerParser {
             if pattern_list.is_empty() {
                 return None;
             }
-            // 读取condition字段，自动反序列化，无则用枚举默认值Or
+
+            // 解析condition字段（无则默认Or）
             let condition = match rule_obj {
-                Some(Value::Object(obj)) => obj.get("condition")
+                Some(Value::Object(obj)) => obj
+                    .get("condition")
                     .and_then(|v| serde_json::from_value(v.clone()).ok())
                     .unwrap_or_default(),
                 _ => MatchCondition::Or,
             };
+
             Some((
                 scope,
                 MatchRuleSet {
@@ -216,6 +258,7 @@ impl WappalyzerParser {
             ))
         }
 
+        // 构建KV型匹配规则集（用于meta/header/cookie/js）
         fn build_keyed_match_rule_set(
             pattern_map: &HashMap<String, Value>,
             _scope_name: &str,
@@ -229,12 +272,12 @@ impl WappalyzerParser {
                     Value::Array(arr) => {
                         for item in arr {
                             if let Value::String(s) = item {
-                                let s = s.trim().to_string();
-                                if !s.is_empty() {
+                                let s_trimmed = s.trim().to_string();
+                                if !s_trimmed.is_empty() {
                                     keyed_patterns.push(KeyedPattern {
                                         key: key.clone(),
                                         pattern: Pattern {
-                                            pattern: s,
+                                            pattern: s_trimmed,
                                             match_type: MatchType::Contains,
                                             version_template: None,
                                         },
@@ -244,11 +287,11 @@ impl WappalyzerParser {
                         }
                     }
                     Value::String(s) => {
-                        let s = s.trim().to_string();
+                        let s_trimmed = s.trim().to_string();
                         keyed_patterns.push(KeyedPattern {
                             key: key.clone(),
                             pattern: Pattern {
-                                pattern: s,
+                                pattern: s_trimmed,
                                 match_type: MatchType::Exists,
                                 version_template: None,
                             },
@@ -257,6 +300,7 @@ impl WappalyzerParser {
                     _ => {}
                 }
             }
+
             keyed_patterns
         }
 
@@ -265,8 +309,9 @@ impl WappalyzerParser {
             .technologies
             .into_iter()
             .map(|(tech_name, original_tech)| {
-                clean_stats.total_original_tech_rules += 1;
+                _clean_stats.total_original_tech_rules += 1;
 
+                // 构建技术基础信息
                 let basic = TechBasicInfo {
                     category_ids: original_tech.category_ids,
                     implies: implies_value_to_vec(&original_tech.implies),
@@ -290,20 +335,26 @@ impl WappalyzerParser {
 
                 let mut match_rules = HashMap::default();
 
-                // 处理列表型规则【URL/HTML/Script/ScriptSrc】- 逻辑不变，只是用了修改后的build函数
+                // 处理列表型规则（URL/HTML/Script/ScriptSrc）
                 let list_rules = vec![
                     build_list_match_rule_set(&original_tech.url, "url", MatchScope::Url),
                     build_list_match_rule_set(&original_tech.html, "html", MatchScope::Html),
                     build_list_match_rule_set(&original_tech.scripts, "script", MatchScope::Script),
-                    build_list_match_rule_set(&original_tech.script_src, "script_src", MatchScope::ScriptSrc),
+                    build_list_match_rule_set(
+                        &original_tech.script_src,
+                        "script_src",
+                        MatchScope::ScriptSrc,
+                    ),
                 ];
                 batch_insert_list_rules(&mut match_rules, list_rules);
 
-                // ✅ 修改点2: KV型规则 读取condition字段 (meta/header/cookie/js 四处，格式一致)
+                // 处理Meta匹配规则（支持condition字段）
                 if let Some(meta_map) = &original_tech.meta {
                     let keyed_patterns = build_keyed_match_rule_set(meta_map, "meta");
                     if !keyed_patterns.is_empty() {
-                        let meta_condition = original_tech.meta.as_ref()
+                        let meta_condition = original_tech
+                            .meta
+                            .as_ref()
                             .and_then(|m| m.get("condition"))
                             .and_then(|v| serde_json::from_value(v.clone()).ok())
                             .unwrap_or_default();
@@ -318,10 +369,13 @@ impl WappalyzerParser {
                     }
                 }
 
+                // 处理Header匹配规则（支持condition字段）
                 if let Some(header_map) = &original_tech.headers {
                     let header_keyed_patterns = build_keyed_match_rule_set(header_map, "header");
                     if !header_keyed_patterns.is_empty() {
-                        let header_condition = original_tech.headers.as_ref()
+                        let header_condition = original_tech
+                            .headers
+                            .as_ref()
                             .and_then(|h| h.get("condition"))
                             .and_then(|v| serde_json::from_value(v.clone()).ok())
                             .unwrap_or_default();
@@ -336,10 +390,13 @@ impl WappalyzerParser {
                     }
                 }
 
+                // 处理Cookie匹配规则（支持condition字段）
                 if let Some(cookie_map) = &original_tech.cookies {
                     let cookie_keyed_patterns = build_keyed_match_rule_set(cookie_map, "cookie");
                     if !cookie_keyed_patterns.is_empty() {
-                        let cookie_condition = original_tech.cookies.as_ref()
+                        let cookie_condition = original_tech
+                            .cookies
+                            .as_ref()
                             .and_then(|c| c.get("condition"))
                             .and_then(|v| serde_json::from_value(v.clone()).ok())
                             .unwrap_or_default();
@@ -354,10 +411,13 @@ impl WappalyzerParser {
                     }
                 }
 
+                // 处理JS匹配规则（支持condition字段）
                 if let Some(js_map) = &original_tech.js {
                     let js_keyed_patterns = build_keyed_match_rule_set(js_map, "js");
                     if !js_keyed_patterns.is_empty() {
-                        let js_condition = original_tech.js.as_ref()
+                        let js_condition = original_tech
+                            .js
+                            .as_ref()
                             .and_then(|j| j.get("condition"))
                             .and_then(|v| serde_json::from_value(v.clone()).ok())
                             .unwrap_or_default();
@@ -372,14 +432,14 @@ impl WappalyzerParser {
                     }
                 }
 
-                // 过滤无有效规则的技术项
-                let parsed_tech_rule = if match_rules.is_empty() {
-                    ParsedTechRule {
-                        basic,
-                        match_rules: HashMap::default(),
-                    }
-                } else {
-                    ParsedTechRule { basic, match_rules }
+                // 构建解析后的技术规则（过滤无匹配规则的项）
+                let parsed_tech_rule = ParsedTechRule {
+                    basic,
+                    match_rules: if match_rules.is_empty() {
+                        HashMap::default()
+                    } else {
+                        match_rules
+                    },
                 };
 
                 (tech_name, parsed_tech_rule)
@@ -402,6 +462,7 @@ impl WappalyzerParser {
             })
             .collect();
 
+        // 构建内核规则库
         RuleLibrary {
             core_tech_map,
             category_rules,

@@ -1,10 +1,7 @@
+use rswappalyzer_engine::{CompiledPattern, CompiledRuleLibrary, CompiledTechRule, scope_pruner::PruneScope};
 use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 
-use crate::{
-    CompiledRuleLibrary, VersionExtractor, analyzer::{
-        Analyzer, common::{handle_exists_success, handle_match_success}
-    }, rule::indexer::index_pattern::{CompiledPattern, CompiledTechRule}, utils::regex_filter::scope_pruner::PruneScope
-};
+use crate::{VersionExtractor, analyzer::{Analyzer, common::{handle_exists_success, handle_match_success}}};
 
 // Meta 分析器
 pub struct MetaAnalyzer;
@@ -29,20 +26,20 @@ impl Analyzer<FxHashMap<String, Vec<CompiledPattern>>, FxHashMap<String, &str>> 
             //     dbg!(&name);
             // }
 
-            let has_exists = patterns.iter().any(|p| p.exec.matcher.to_matcher().is_exists());
+            let has_exists = patterns.iter().any(|p| p.exec.get_matcher().is_exists());
 
             // 存在性匹配分支 - 独立处理，无冗余赋值
             if has_exists && meta_map.contains_key(name) {
                 let confidence = patterns
                     .iter()
-                    .find(|p| p.exec.matcher.to_matcher().is_exists())
+                    .find(|p| p.exec.get_matcher().is_exists())
                     .map(|p| p.exec.confidence);
                 handle_exists_success(Self::TYPE_NAME, tech_name, name, confidence, detected);
             }
             // 正则/包含匹配分支 - 按需声明变量，无提前赋值
             else if let Some(content) = meta_map.get(name) {
                 for pattern in patterns {
-                    let matcher = pattern.exec.matcher.to_matcher();
+                    let matcher = pattern.exec.get_matcher();
                     if !matcher.is_exists() && pattern.matches_with_prune(content, meta_tokens) {
                         let confidence = Some(pattern.exec.confidence);
                         let version = matcher.captures(content).and_then(|cap| {

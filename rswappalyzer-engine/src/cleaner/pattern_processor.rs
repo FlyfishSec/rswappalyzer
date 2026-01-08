@@ -1,20 +1,24 @@
-use crate::core::{MatchScope, MatchType, ParsedTechRule, Pattern};
-use crate::indexer::{PatternList, PatternMap};
+use std::cell::RefCell;
 
 use super::clean_stats::CleanStats;
 use super::regex_fixer::RegexFixer;
+use crate::core::{MatchScope, MatchType, ParsedTechRule, Pattern};
+use crate::indexer::{PatternList, PatternMap};
+use crate::{CoreError, CoreResult};
 
-use regex_syntax::ast::Ast;
 use regex_syntax::ast::parse::{Parser, ParserBuilder};
+use regex_syntax::ast::Ast;
 
 use serde_json::Value;
 //use std::collections::HashMap;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap;
 
 /// 模式处理器（专门处理各类规则模式的清理与标记）
 #[derive(Debug, Default)]
 pub struct PatternProcessor {
     regex_fixer: RegexFixer,
+    // 单线程场景,正则编译缓存 Key=原始字符串 Value=(是否有捕获组, 编译结果)
+    regex_cache: RefCell<FxHashMap<String, (bool, Option<regex::Regex>)>>,
 }
 
 impl PatternProcessor {
@@ -23,18 +27,15 @@ impl PatternProcessor {
         &self,
         original_tech: &ParsedTechRule,
         stats: &mut CleanStats,
-    ) -> Result<
-        (
-            Option<PatternList>,
-            Option<PatternList>,
-            Option<PatternList>,
-            Option<PatternList>,
-            Option<PatternMap>,
-            Option<PatternMap>,
-            Option<PatternMap>,
-        ),
-        Box<dyn std::error::Error>,
-    > {
+    ) -> CoreResult<(
+        Option<PatternList>,
+        Option<PatternList>,
+        Option<PatternList>,
+        Option<PatternList>,
+        Option<PatternMap>,
+        Option<PatternMap>,
+        Option<PatternMap>,
+    )> {
         // 1. 处理列表型规则（Url/Html）：标准JSON解析+清理
         let url = self.build_list_pattern(original_tech, MatchScope::Url, stats, "url")?;
         let html = self.build_list_pattern(original_tech, MatchScope::Html, stats, "html")?;
@@ -59,18 +60,17 @@ impl PatternProcessor {
         scope: MatchScope,
         stats: &mut CleanStats,
         pat_type: &str,
-    ) -> Result<Option<PatternList>, Box<dyn std::error::Error>> {
+    ) -> CoreResult<Option<PatternList>> {
         let Some(rule_set) = tech.match_rules.get(&scope) else {
             return Ok(None);
         };
-        let arr = Value::Array(
-            rule_set
-                .list_patterns
-                .iter()
-                .map(|p| Value::String(p.pattern.clone()))
-                .collect(),
-        );
-        self.clean_and_mark_list_pattern(Some(&arr), stats, pat_type)
+        let pattern_strs: Vec<&str> = rule_set
+            .list_patterns
+            .iter()
+            .map(|p| p.pattern.as_str())
+            .collect();
+        let patterns = self.clean_pattern_str_list(&pattern_strs, stats, pat_type)?;
+        Ok(patterns.to_opt_pattern())
     }
 
     /// 统一构建键值对型规则
@@ -80,16 +80,27 @@ impl PatternProcessor {
         scope: MatchScope,
         stats: &mut CleanStats,
         pat_type: &str,
-    ) -> Result<Option<PatternMap>, Box<dyn std::error::Error>> {
+    ) -> CoreResult<Option<PatternMap>> {
         let Some(rule_set) = tech.match_rules.get(&scope) else {
             return Ok(None);
         };
-        // 构建标准的 HashMap<String, Value> 适配 clean_and_mark_keyed_pattern 的入参
-        let mut keyed_map = HashMap::default();
+        // 直接构建字符串Map，不转Value::String
+        let mut keyed_map = FxHashMap::default();
         for kp in &rule_set.keyed_patterns {
-            keyed_map.insert(kp.key.clone(), Value::String(kp.pattern.pattern.clone()));
+            keyed_map.insert(kp.key.clone(), kp.pattern.pattern.clone());
         }
-        self.clean_and_mark_keyed_pattern(Some(&keyed_map), stats, pat_type)
+        // 直接处理字符串Map，不走JSON解析
+        let mut valid_keyed_patterns = FxHashMap::default();
+        stats.update_original_pattern_stats(pat_type, keyed_map.len());
+        for (key, val) in keyed_map {
+            let key_lower = key.to_lowercase();
+            let pat_strs = vec![val.as_str()];
+            let pats = self.clean_pattern_str_list(&pat_strs, stats, pat_type)?;
+            if !pats.is_empty() {
+                valid_keyed_patterns.insert(key_lower, pats);
+            }
+        }
+        Ok(valid_keyed_patterns.to_opt_pattern_map())
     }
 
     // 判断是否有有效模式
@@ -118,7 +129,7 @@ impl PatternProcessor {
         parsed_patterns: Option<&Vec<Pattern>>,
         stats: &mut CleanStats,
         pattern_type: &str,
-    ) -> Result<Option<PatternList>, Box<dyn std::error::Error>> {
+    ) -> CoreResult<Option<PatternList>> {
         let Some(parsed_patterns) = parsed_patterns else {
             return Ok(None);
         };
@@ -134,16 +145,28 @@ impl PatternProcessor {
         original_value: Option<&Value>,
         stats: &mut CleanStats,
         pattern_type: &str,
-    ) -> Result<Option<PatternList>, Box<dyn std::error::Error>> {
+    ) -> CoreResult<Option<PatternList>> {
         let Some(original_value) = original_value else {
             return Ok(None);
         };
 
         let pattern_strs: Vec<&str> = match original_value {
             Value::String(s) => vec![s.as_str()],
-            Value::Array(arr) => arr.iter().filter_map(|item| item.as_str()).collect(),
+            Value::Array(arr) => arr
+                .iter()
+                .filter_map(|item| {
+                    if let Value::String(s) = item {
+                        Some(s.as_str())
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
             _ => {
-                return Err(format!("{}模式类型无效，仅支持字符串或数组", pattern_type).into());
+                return Err(CoreError::RuleParseError(format!(
+                    "{}模式类型无效，仅支持字符串或数组",
+                    pattern_type
+                )));
             }
         };
 
@@ -157,7 +180,7 @@ impl PatternProcessor {
         pattern_strs: &[&str],
         stats: &mut CleanStats,
         pattern_type: &str,
-    ) -> Result<Vec<Pattern>, Box<dyn std::error::Error>> {
+    ) -> CoreResult<Vec<Pattern>> {
         let mut patterns = Vec::new();
         let original_count = pattern_strs.len();
         stats.update_original_pattern_stats(pattern_type, original_count);
@@ -202,7 +225,7 @@ impl PatternProcessor {
         &self,
         original_tech_rule: &ParsedTechRule,
         stats: &mut CleanStats,
-    ) -> Result<(Option<PatternList>, Option<PatternList>), Box<dyn std::error::Error>> {
+    ) -> CoreResult<(Option<PatternList>, Option<PatternList>)> {
         let script_patterns = original_tech_rule
             .match_rules
             .get(&MatchScope::Script)
@@ -224,15 +247,15 @@ impl PatternProcessor {
     /// 清理并标记键值对型模式（meta/headers/cookies）
     pub fn clean_and_mark_keyed_pattern(
         &self,
-        original_value: Option<&HashMap<String, Value>>,
+        original_value: Option<&FxHashMap<String, Value>>,
         stats: &mut CleanStats,
         pattern_type: &str,
-    ) -> Result<Option<PatternMap>, Box<dyn std::error::Error>> {
+    ) -> CoreResult<Option<PatternMap>> {
         let Some(original_value) = original_value else {
             return Ok(None);
         };
 
-        let mut valid_keyed_patterns = HashMap::default();
+        let mut valid_keyed_patterns = FxHashMap::default();
 
         for (key, val) in original_value {
             let key_lower = key.to_lowercase();
@@ -252,7 +275,26 @@ impl PatternProcessor {
         &self,
         raw_pattern: &str,
         stats: &mut CleanStats,
-    ) -> Result<Option<Pattern>, Box<dyn std::error::Error>> {
+    ) -> CoreResult<Option<Pattern>> {
+        // 第一步：先判断简单模式，直接返回，不走后续修复逻辑
+        if self.regex_fixer.is_simple_contains(raw_pattern) {
+            stats.contains_count += 1;
+            return Ok(Some(Pattern {
+                pattern: raw_pattern.to_string(),
+                match_type: MatchType::Contains,
+                version_template: None, // 简单模式无版本模板
+            }));
+        }
+        if self.regex_fixer.is_simple_starts_with(raw_pattern) {
+            stats.starts_with_count += 1;
+            let trimmed_pattern = raw_pattern[1..].to_string();
+            return Ok(Some(Pattern {
+                pattern: trimmed_pattern,
+                match_type: MatchType::StartsWith,
+                version_template: None,
+            }));
+        }
+
         // 提取版本模板
         let version_template = if raw_pattern.contains(";version:") {
             // 带 ;version: 标记的规则 → 解析自定义版本模板
@@ -260,35 +302,19 @@ impl PatternProcessor {
             parts.get(1).map(|v| v.to_string())
         } else {
             // 纯正则无标记规则 → 有捕获组则自动赋值默认模板 ${1}
-            match regex::Regex::new(&raw_pattern) {
-                Ok(re) if re.captures_len() > 1 => Some("${1}".to_string()),
-                _ => None,
+            // 优先查缓存，避免重复编译
+            let (has_capture, _) = self.get_regex_cache(raw_pattern)?;
+            if has_capture {
+                Some("${1}".to_string())
+            } else {
+                None
             }
         };
-
-        if self.regex_fixer.is_simple_contains(raw_pattern) {
-            stats.contains_count += 1;
-            return Ok(Some(Pattern {
-                pattern: raw_pattern.to_string(),
-                match_type: MatchType::Contains,
-                version_template,
-            }));
-        }
 
         let pattern_without_delimiter = self.regex_fixer.remove_pcre_delimiter(raw_pattern);
         let pattern_trimmed = pattern_without_delimiter.trim();
         if pattern_trimmed.is_empty() {
             return Ok(None);
-        }
-
-        if self.regex_fixer.is_simple_starts_with(pattern_trimmed) {
-            stats.starts_with_count += 1;
-            let trimmed_pattern = pattern_trimmed[1..].to_string();
-            return Ok(Some(Pattern {
-                pattern: trimmed_pattern,
-                match_type: MatchType::StartsWith,
-                version_template,
-            }));
         }
 
         let mut cleaned_pattern = pattern_trimmed.to_string();
@@ -364,6 +390,29 @@ impl PatternProcessor {
         }))
     }
 
+    // 缓存辅助方法
+    fn get_regex_cache(&self, raw_pattern: &str) -> CoreResult<(bool, Option<regex::Regex>)> {
+        // 使用 try_borrow_mut 避免 panic，转换为业务错误
+        let mut cache = self.regex_cache.try_borrow_mut()
+            .map_err(|e| CoreError::InternalError(format!(
+                "正则缓存被同时借用，无法获取可变引用：{}", e
+            )))?; 
+
+        // 先查缓存
+        if let Some((has_capture, re)) = cache.get(raw_pattern) {
+            return Ok((*has_capture, re.clone()));
+        }
+
+        // 编译正则
+        let re = regex::Regex::new(raw_pattern).ok();
+        let has_capture = re.as_ref().map_or(false, |r| r.captures_len() > 1);
+
+        // 插入缓存
+        cache.insert(raw_pattern.to_string(), (has_capture, re.clone()));
+
+        Ok((has_capture, re))
+    }
+
     /// 规范化正则
     pub fn optimize_wappalyzer_regex(pattern: &str) -> String {
         let mut parser: Parser = ParserBuilder::new().build();
@@ -391,7 +440,7 @@ impl ToOptionPattern for Vec<Pattern> {
 trait ToOptionPatternMap {
     fn to_opt_pattern_map(self) -> Option<PatternMap>;
 }
-impl ToOptionPatternMap for HashMap<String, Vec<Pattern>> {
+impl ToOptionPatternMap for FxHashMap<String, Vec<Pattern>> {
     fn to_opt_pattern_map(self) -> Option<PatternMap> {
         if self.is_empty() {
             None

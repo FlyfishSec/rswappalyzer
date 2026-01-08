@@ -1,6 +1,7 @@
+use rswappalyzer_engine::{CompiledRuleLibrary, CompiledTechRule, scope_pruner::PruneScope};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{CompiledRuleLibrary, analyzer::candidate_collector::collect_candidate_techs, rule::indexer::index_pattern::CompiledTechRule, utils::{extractor::token_extract::extract_input_tokens, regex_filter::scope_pruner::PruneScope}};
+use crate::{analyzer::candidate_collector::collect_candidate_techs};
 
 pub mod common;
 pub mod url;
@@ -75,7 +76,7 @@ where
 {
     let mut tokens = FxHashSet::default();
     for data in data_iter {
-        tokens.extend(extract_input_tokens(data.as_ref()));
+        tokens.extend(crate::utils::extractor::token_extract_zh::extract_input_tokens(data.as_ref()));
     }
 
     // 1. 传入维度，筛选当前维度下的证据候选技术

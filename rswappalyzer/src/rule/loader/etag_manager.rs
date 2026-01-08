@@ -6,7 +6,7 @@ use crate::error::{RswResult};
 use crate::rule::loader::etag::{ETagRecord, ETagTotalRecord};
 use crate::rule::loader::path_manager::RulePathManager;
 
-/// ETag 记录管理器（专门处理 ETag 相关逻辑）
+/// ETag 记录管理器
 #[derive(Default)]
 pub struct EtagManager {
     path_manager: RulePathManager,
@@ -36,7 +36,7 @@ impl EtagManager {
 
         let content = serde_json::to_string_pretty(etag_records)?;
         fs::write(&etag_path, content)?;
-        debug!("ETag 记录已保存到：{}", etag_path.display());
+        debug!("ETag save to：{}", etag_path.display());
         Ok(())
     }
 

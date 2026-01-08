@@ -1,10 +1,9 @@
 //! 检测结果更新工具
+use rswappalyzer_engine::CompiledRuleLibrary;
 use rustc_hash::{FxHashMap, FxHashSet};
-
-use crate::rule::indexer::index_pattern::CompiledRuleLibrary;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::hash::BuildHasher; // ✅ 核心：泛型哈希器，兼容所有HashMap/FxHashMap
+use std::hash::BuildHasher;
 
 /// 检测结果更新工具
 pub struct DetectionUpdater;
@@ -19,8 +18,16 @@ impl DetectionUpdater {
         version: Option<String>,
     ) {
         // 1. 处理默认值：置信度默认100，版本默认None
-        let new_conf = confidence.unwrap_or(100);
+        let raw_conf = confidence.unwrap_or(100);
         let new_version = version;
+
+        // 无版本号 自动降级置信度，有版本号 保留原置信度
+        // 无版本号置信度值：85
+        const NO_VERSION_CONF: u8 = 85;
+        let new_conf = match &new_version {
+            Some(_) => raw_conf,    // 有版本号 → 置信度不变（如100）
+            None => NO_VERSION_CONF, // 无版本号 → 强制降级为指定值
+        };
 
         match detected.entry(tech_name.to_string()) {
             Entry::Occupied(mut entry) => {
@@ -79,7 +86,7 @@ impl DetectionUpdater {
             // 置信度加权：来源越多，置信度越高，最高不超过MAX_IMPLY_CONF
             let boost = std::cmp::min(source_count * BOOST_PER_SOURCE, MAX_IMPLY_CONF - BASE_IMPLY_CONF);
             let final_conf = BASE_IMPLY_CONF + boost;
-            // 写入detected，版本为None
+            // 写入detected，版本为None - 推导技术天然无版本，此处逻辑不变
             detected.entry(target_tech.clone()).or_insert((final_conf, None));
         }
 
@@ -105,9 +112,11 @@ impl DetectionUpdater {
             return true;
         }
         if new_conf == old_conf {
+            // 同置信度下，【有版本号】永远优于【无版本号】（优先级最高）
             if old_version.is_none() && new_version.is_some() {
                 return true;
             }
+            // 同置信度+都有版本号 → 版本号越长越优
             if let (Some(new_ver), Some(old_ver)) = (new_version, old_version) {
                 return new_ver.len() > old_ver.len();
             }
