@@ -88,10 +88,6 @@ The following projects are used as rule sources:
 - **wappalyzergo**  
   <https://github.com/projectdiscovery/wappalyzergo>
 
-## Author | 作者
-
-FlyfishSec
-
 ---
 
 ## License | 许可证
