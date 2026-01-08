@@ -285,15 +285,6 @@ impl PatternProcessor {
                 version_template: None, // 简单模式无版本模板
             }));
         }
-        if self.regex_fixer.is_simple_starts_with(raw_pattern) {
-            stats.starts_with_count += 1;
-            let trimmed_pattern = raw_pattern[1..].to_string();
-            return Ok(Some(Pattern {
-                pattern: trimmed_pattern,
-                match_type: MatchType::StartsWith,
-                version_template: None,
-            }));
-        }
 
         // 提取版本模板
         let version_template = if raw_pattern.contains(";version:") {
@@ -383,6 +374,8 @@ impl PatternProcessor {
         //         Ok(None)
         //     }
         // }
+        stats.regex_count += 1; // 原 StartsWith 规则归为正则统计
+
         Ok(Some(Pattern {
             pattern: normalized_pattern,
             match_type: MatchType::Regex,

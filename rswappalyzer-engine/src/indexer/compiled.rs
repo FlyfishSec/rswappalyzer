@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Matcher, indexer::{MatcherSpec, enums::MatchGate}, preview::preview_compact, pruner::{min_evidence_checker, prune_strategy, scope_pruner}, scope_pruner::PruneScope
+    Matcher, indexer::{MatcherSpec, enums::MatchGate}, preview::preview_compact, pruner::{min_evidence_checker, scope_pruner}, scope_pruner::PruneScope
 };
 use once_cell::sync::OnceCell;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -118,24 +118,6 @@ impl CompiledPattern {
             MatchGate::Open => {
                 log::debug!(
                     "Prune allowed (fallback) | Reason: MatchGate is Open (no check) | Input preview: {} | Rule: {}",
-                    input_preview,
-                    matcher_desc
-                );
-            }
-            MatchGate::Anchor(strategy) => {
-                if !prune_strategy::check_safe_prune(input, strategy) {
-                    log::debug!(
-                        "Regex prune filtered | Strategy: {:?} | Input preview: {} | Length: {} | Rule: {}",
-                        strategy,
-                        input_preview,
-                        input.len(),
-                        matcher_desc
-                    );
-                    return false;
-                }
-                log::debug!(
-                    "Regex prune allowed | Strategy: {:?} | Input preview: {} | Rule: {}",
-                    strategy,
                     input_preview,
                     matcher_desc
                 );

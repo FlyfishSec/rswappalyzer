@@ -8,8 +8,6 @@ use crate::{
         CompiledPattern, ExecutablePattern, MatchGate, RuleLibraryIndex, ScopedIndexedRule,
         StructuralPrereq,
     },
-    prune_strategy::PruneStrategy,
-    pruner::*,
     pruner::{min_evidence, tokenizer},
     scope_pruner::PruneScope,
     utils::safe_lower::safe_lowercase,
@@ -334,7 +332,6 @@ impl RuleIndexer {
             // 适配实际的 MatchGate 变体：Open/Anchor/RequireAll/RequireAny
             let evidence_set = match &pat.exec.match_gate {
                 MatchGate::Open => FxHashSet::default(), // 无准入条件 → 空集合
-                MatchGate::Anchor(_) => FxHashSet::default(), // 锚点剪枝 → 无证据令牌
                 MatchGate::RequireAll(set) => set.clone(), // 直接复用已有集合
                 MatchGate::RequireAnyLiteral(list) => {
                     // Vec<String> 转 FxHashSet<String>
@@ -380,7 +377,6 @@ impl RuleIndexer {
                 // 适配实际的 MatchGate 变体
                 let evidence_set = match &pat.exec.match_gate {
                     MatchGate::Open => FxHashSet::default(),
-                    MatchGate::Anchor(_) => FxHashSet::default(),
                     MatchGate::RequireAll(set) => set.clone(),
                     MatchGate::RequireAnyLiteral(list) => {
                         let mut set = FxHashSet::default();
@@ -498,12 +494,11 @@ impl RuleIndexer {
             let matcher_spec = matcher.to_spec();
 
             // 提取剪枝策略和证据
-            let prune_strategy = Self::get_prune_strategy(&matcher);
             let min_evidence = Self::extract_min_evidence_tokens(&matcher);
             let structural_prereq = StructuralPrereq::from_matcher(&matcher);
 
             // 构建匹配门控
-            let match_gate = fold_to_match_gate(prune_strategy, min_evidence, structural_prereq);
+            let match_gate = fold_to_match_gate(min_evidence, structural_prereq);
 
             // 添加编译后的模式
             pats.push(CompiledPattern {
@@ -543,13 +538,12 @@ impl RuleIndexer {
                 let matcher_spec = matcher.to_spec();
 
                 // 提取剪枝策略和证据
-                let prune_strategy = Self::get_prune_strategy(&matcher);
                 let min_evidence = Self::extract_min_evidence_tokens(&matcher);
                 let structural_prereq = StructuralPrereq::from_matcher(&matcher);
 
                 // 构建匹配门控
                 let match_gate =
-                    fold_to_match_gate(prune_strategy, min_evidence, structural_prereq);
+                    fold_to_match_gate(min_evidence, structural_prereq);
 
                 // 添加编译后的模式
                 rule_pats.push(CompiledPattern {
@@ -575,28 +569,13 @@ impl RuleIndexer {
         (!pats.is_empty()).then_some(pats)
     }
 
-    /// 获取匹配器对应的剪枝策略
-    /// 参数：matcher - 运行时匹配器
-    /// 返回：剪枝策略
-    #[inline(always)]
-    fn get_prune_strategy(matcher: &Matcher) -> PruneStrategy {
-        match matcher {
-            Matcher::StartsWith(s) => PruneStrategy::AnchorPrefix(s.to_string()),
-            Matcher::Contains(s) => PruneStrategy::Literal(s.to_string()),
-            Matcher::LazyRegex { pattern, .. } => {
-                prune_strategy::extract_prune_strategy(pattern.as_str())
-            }
-            Matcher::Exists => PruneStrategy::None,
-        }
-    }
-
     /// 提取匹配器的最小证据令牌
     /// 参数：matcher - 运行时匹配器
     /// 返回：最小证据令牌集合
     #[inline(always)]
     fn extract_min_evidence_tokens(matcher: &Matcher) -> FxHashSet<String> {
         match matcher {
-            Matcher::Contains(s) | Matcher::StartsWith(s) => {
+            Matcher::Contains(s) => {
                 let literal = safe_lowercase(s.as_str());
                 if literal.len() > 2 {
                     tokenizer::extract_atomic_tokens(&literal)

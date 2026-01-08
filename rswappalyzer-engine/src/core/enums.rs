@@ -33,7 +33,6 @@ impl Display for MatchScope {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum MatchType {
     Contains,
-    StartsWith,
     Regex,
     Exists, // 存在性检测（仅用于 headers/meta 的空值场景）
 }

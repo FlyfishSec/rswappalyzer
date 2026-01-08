@@ -3,13 +3,12 @@ use std::sync::Arc;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{prune_strategy::PruneStrategy, Matcher};
+use crate::Matcher;
 
 // 纯静态的匹配规则描述体
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum MatcherSpec {
     Contains(String),
-    StartsWith(String),
     Exists,
     Regex {
         pattern: String,
@@ -23,7 +22,6 @@ impl MatcherSpec {
     pub fn to_matcher(&self) -> Matcher {
         match self {
             MatcherSpec::Contains(s) => Matcher::Contains(Arc::new(s.clone())),
-            MatcherSpec::StartsWith(s) => Matcher::StartsWith(Arc::new(s.clone())),
             MatcherSpec::Exists => Matcher::Exists,
             MatcherSpec::Regex {
                 pattern,
@@ -39,14 +37,12 @@ impl MatcherSpec {
 /// 匹配准入网关 - 编译期折叠后的统一剪枝规则
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub enum MatchGate {
-    /// 无任何准入条件，直接执行匹配（对应原 None/Exists）
+    /// 无任何准入条件，直接执行匹配
     #[default]
     Open,
-    /// 锚点级快速剪枝（优先级最高，对应原 PruneStrategy::AnchorPrefix/AnchorSuffix/Exact）
-    Anchor(PruneStrategy),
-    /// 最小证据剪枝（交集，铁律，对应原 min_evidence_set，零误杀核心）
+    /// 最小证据剪枝（交集）
     RequireAll(FxHashSet<String>),
-    /// 结构前置剪枝（并集，准入门槛，对应原 StructuralPrereq，适配 (A|B|C) 正则）
+    /// 结构前置剪枝（并集，准入门槛，(A|B|C) 正则）
     RequireAnyLiteral(Vec<String>),
 }
 
@@ -56,13 +52,6 @@ impl MatchGate {
     pub fn check(&self, input: &str, input_tokens: &FxHashSet<String>) -> bool {
         match self {
             MatchGate::Open => true,
-            MatchGate::Anchor(strategy) => match strategy {
-                PruneStrategy::None => true,
-                PruneStrategy::AnchorPrefix(p) => input.starts_with(p),
-                PruneStrategy::AnchorSuffix(s) => input.ends_with(s),
-                PruneStrategy::Exact(e) => input == e,
-                PruneStrategy::Literal(l) => input.contains(l),
-            },
             MatchGate::RequireAll(set) => set.iter().all(|t| input_tokens.contains(t.as_str())),
             MatchGate::RequireAnyLiteral(list) => {
                 // Structural literals (non-atomic, non-tokenizable).

@@ -17,11 +17,7 @@ static SIMPLE_CONTAINS_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"^[^.*+?^$()\[\]\\|]+$"#).unwrap()
 });
 
-static SIMPLE_STARTS_WITH_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"^\^[^.*+?^$()\[\]\\|]+$"#).unwrap()
-});
-
-/// 正则修复器（专门处理正则模式的修复与类型判断）
+/// 正则修复器
 #[derive(Debug, Default)]
 pub struct RegexFixer;
 
@@ -29,11 +25,6 @@ impl RegexFixer {
     /// 判断是否为简单包含匹配（无正则特殊字符）
     pub fn is_simple_contains(&self, pattern: &str) -> bool {
         SIMPLE_CONTAINS_REGEX.is_match(pattern)
-    }
-
-    /// 判断是否为简单前缀匹配（^ + 无正则特殊字符）
-    pub fn is_simple_starts_with(&self, pattern: &str) -> bool {
-        SIMPLE_STARTS_WITH_REGEX.is_match(pattern)
     }
 
     /// 移除PCRE分隔符（首尾的/）

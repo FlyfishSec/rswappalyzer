@@ -1,6 +1,5 @@
 use crate::{
     core::{MatchType, Pattern},
-    prune_strategy::PruneStrategy,
     regex_literal::{self, extract_or_branch_literals},
 };
 use once_cell::sync::Lazy;
@@ -29,8 +28,6 @@ pub static REGEX_CACHE: Lazy<RwLock<FxHashMap<RegexCacheKey, Arc<Regex>>>> =
 pub enum Matcher {
     /// 包含匹配（子字符串）
     Contains(Arc<String>),
-    /// 前缀匹配（以指定字符串开头）
-    StartsWith(Arc<String>),
     /// 存在匹配（始终返回true）
     Exists,
     /// 懒加载正则匹配
@@ -114,7 +111,6 @@ impl Matcher {
     pub fn describe(&self) -> String {
         match self {
             Matcher::Contains(s) => format!("contains: {}", s),
-            Matcher::StartsWith(s) => format!("starts_with: {}", s),
             Matcher::Exists => "exists".to_string(),
             Matcher::LazyRegex { pattern, .. } => format!("lazy_regex: {}", pattern),
         }
@@ -127,7 +123,6 @@ impl Matcher {
     pub fn matches(&self, input: &str) -> bool {
         match self {
             Matcher::Contains(s) => input.contains(s.as_str()),
-            Matcher::StartsWith(s) => input.starts_with(s.as_str()),
             Matcher::Exists => true,
             Matcher::LazyRegex { .. } => self.get_compiled_regex().is_match(input),
         }
@@ -137,7 +132,6 @@ impl Matcher {
     pub fn to_spec(&self) -> super::MatcherSpec {
         match self {
             Matcher::Contains(s) => super::MatcherSpec::Contains(s.to_string()),
-            Matcher::StartsWith(s) => super::MatcherSpec::StartsWith(s.to_string()),
             Matcher::Exists => super::MatcherSpec::Exists,
             Matcher::LazyRegex {
                 pattern,
@@ -151,13 +145,12 @@ impl Matcher {
 
     /// 从匹配类型构建懒加载匹配器
     /// 参数：
-    /// - match_type: 匹配类型（Contains/StartsWith/Exists/Regex）
+    /// - match_type: 匹配类型（Contains/Exists/Regex）
     /// - pattern: 匹配模式
     /// 返回：运行时匹配器实例
     pub fn from_match_type_lazy(match_type: &MatchType, pattern: &Pattern) -> Self {
         match match_type {
             MatchType::Contains => Self::Contains(Arc::new(pattern.pattern.clone())),
-            MatchType::StartsWith => Self::StartsWith(Arc::new(pattern.pattern.clone())),
             MatchType::Exists => Self::Exists,
             MatchType::Regex => Self::LazyRegex {
                 pattern: Arc::new(pattern.pattern.clone()),
@@ -172,7 +165,6 @@ impl Matcher {
     pub fn from_spec(spec: &super::MatcherSpec) -> Self {
         match spec {
             super::MatcherSpec::Contains(s) => Self::Contains(Arc::new(s.clone())),
-            super::MatcherSpec::StartsWith(s) => Self::StartsWith(Arc::new(s.clone())),
             super::MatcherSpec::Exists => Self::Exists,
             super::MatcherSpec::Regex {
                 pattern,
@@ -194,7 +186,7 @@ impl super::StructuralPrereq {
     /// 3. 正则：提取OR分支字面量，返回RequiresSubstring/RequiresAny
     pub fn from_matcher(matcher: &Matcher) -> Self {
         match matcher {
-            Matcher::Contains(s) | Matcher::StartsWith(s) => {
+            Matcher::Contains(s) => {
                 let s = s.as_str();
                 if s.len() > 2 {
                     super::StructuralPrereq::RequiresSubstring(s.to_string())
@@ -223,7 +215,7 @@ impl super::StructuralPrereq {
     #[inline(always)]
     pub fn from_matcher_old(matcher: &Matcher) -> Self {
         match matcher {
-            Matcher::Contains(s) | Matcher::StartsWith(s) => {
+            Matcher::Contains(s) => {
                 let s = s.as_str();
                 if s.len() > 2 {
                     super::StructuralPrereq::RequiresSubstring(s.to_string())
@@ -255,27 +247,15 @@ impl super::StructuralPrereq {
 /// 返回：匹配门控实例
 #[inline(always)]
 pub fn fold_to_match_gate(
-    prune_strategy: PruneStrategy,
     min_evidence: FxHashSet<String>,
     structural_prereq: super::StructuralPrereq,
 ) -> super::MatchGate {
-    // 优先级1: 锚点剪枝（最高优先级）
-    match prune_strategy {
-        PruneStrategy::AnchorPrefix(_)
-        | PruneStrategy::AnchorSuffix(_)
-        | PruneStrategy::Exact(_)
-        | PruneStrategy::Literal(_) => {
-            return super::MatchGate::Anchor(prune_strategy);
-        }
-        _ => {}
-    }
-
-    // 优先级2: 最小证据剪枝（非空即返回）
+    // 优先级1: 最小证据剪枝（非空即返回）
     if !min_evidence.is_empty() {
         return super::MatchGate::RequireAll(min_evidence);
     }
 
-    // 优先级3: 结构前置剪枝（兜底）
+    // 优先级2: 结构前置剪枝
     match structural_prereq {
         super::StructuralPrereq::RequiresSubstring(s) if s.len() >= 3 => {
             super::MatchGate::RequireAnyLiteral(vec![s])

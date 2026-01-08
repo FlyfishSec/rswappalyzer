@@ -33,7 +33,7 @@ pub fn get_test_headers() -> HeaderMap {
     // Server: Microsoft-IIS/10.0
     headers.insert(
         HeaderName::from_static("server"),
-        HeaderValue::from_static("Microsoft-IIS/10.0"),
+        HeaderValue::from_static("Apache-Coyote/1.1"),
     );
     
     // X-Powered-By: ASP.NET
@@ -64,26 +64,9 @@ pub fn get_test_urls() -> &'static [&'static str] {
 }
 
 /// 获取测试用的HTML响应体
-/// 修复：使用r##"..."## 分隔符，避免#!符号的语法冲突
 #[allow(dead_code)]
 pub fn get_test_html_body() -> &'static str {
-    // 关键修复：将 r#"..."# 升级为 r##"..."##，支持包含#!的字符串
     r##"<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <title>360网神数据脱敏系统</title>
-</head>
-<body>
-    <div id="app">
-        <header class="topbar">
-            <a href="#!/home" class="sysname">360网神数据脱敏系统</a>
-        </header>
-        <div class="content">
-            <p>欢迎使用数据脱敏系统</p>
-        </div>
-    </div>
-</body>
 </html>"##
 }
 
@@ -94,7 +77,7 @@ fn test_data_usage() {
     let _urls = get_test_urls();
     let body = get_test_html_body();
     
-    assert!(body.contains("#!/home")); // 验证特殊符号正常保留
+    assert!(body.contains("#!/home"));
     assert!(body.contains("360网神数据脱敏系统"));
 }
 

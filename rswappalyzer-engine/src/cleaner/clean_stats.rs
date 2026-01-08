@@ -39,8 +39,6 @@ pub struct CleanStats {
     pub valid_meta_patterns: u32,
 
     // ========== 匹配类型统计 ==========
-    /// StartsWith匹配类型数量
-    pub starts_with_count: u32,
     /// Contains匹配类型数量
     pub contains_count: u32,
     /// Regex匹配类型数量
@@ -153,8 +151,7 @@ impl CleanStats {
         
         // 匹配类型统计
         log::debug!(
-            "Match type stats: StartsWith {} | Contains {} | Regex {} | Invalid regex removed {}",
-            self.starts_with_count,
+            "Match type stats: Contains {} | Regex {} | Invalid regex removed {}",
             self.contains_count,
             self.regex_count,
             self.invalid_regex_total

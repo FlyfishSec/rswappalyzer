@@ -37,6 +37,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("cargo:rerun-if-changed=data/");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=build_support/");
+    // 监听src/下的所有.rs文件（规则处理逻辑变更时触发重新构建）
+    println!("cargo:rerun-if-changed=src/");
 
     // 读取并解析构建配置文件
     let config_path = Path::new("build_config.json");
