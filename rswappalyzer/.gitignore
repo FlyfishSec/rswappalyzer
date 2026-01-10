@@ -1,5 +1,5 @@
 /target
-src/rswappalyzer_rules.rs
+example/test_data/test_html.html
 *.del
 *.bak
 *.old
