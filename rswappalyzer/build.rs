@@ -90,10 +90,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map_err(|e| format!("JSON序列化编译规则库失败: {}", e))?;
 
     // 调试代码
-    // let debug_json_path = Path::new("compiled_rules_debug.json");
-    // fs::write(&debug_json_path, &compiled_lib_bin)
-    //     .map_err(|e| format!("写入调试 JSON 失败: {} - {}", debug_json_path.display(), e))?;
-    // println!("✅ 调试 JSON 已写入当前目录: {}", debug_json_path.display());
+    let debug_json_path = Path::new("compiled_rules_debug.json");
+    fs::write(&debug_json_path, &compiled_lib_bin)
+        .map_err(|e| format!("写入调试 JSON 失败: {} - {}", debug_json_path.display(), e))?;
+    println!("✅ 调试 JSON 已写入当前目录: {}", debug_json_path.display());
 
     // 根据配置选择是否进行LZ4压缩
     let compressed_lib = if cfg.enable_compress {

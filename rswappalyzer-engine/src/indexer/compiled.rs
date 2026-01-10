@@ -1,7 +1,5 @@
-use std::borrow::Cow;
-
 use crate::{
-    Matcher, indexer::{MatcherSpec, enums::MatchGate}, preview::preview_compact, pruner::{min_evidence_checker, scope_pruner}, scope_pruner::PruneScope
+    Matcher, indexer::{MatcherSpec, enums::MatchGate}, pruner::{min_evidence_checker, scope_pruner}, scope_pruner::PruneScope
 };
 use once_cell::sync::OnceCell;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -98,7 +96,8 @@ impl CompiledPattern {
     /// 返回：是否通过剪枝
     #[inline(always)]
     pub fn prune_check_with_log(&self, input: &str, input_tokens: &FxHashSet<String>) -> bool {
-        let input_preview = preview_compact(input, 120);
+        let input_preview = crate::utils::log_format::preview_compact(input, 120);
+        let input_tokens_preview = crate::utils::log_format::compress_token_set_default(input_tokens);
         let matcher_desc = self.exec.get_matcher().describe();
 
         // 1. 全局黑名单剪枝校验
@@ -132,7 +131,7 @@ impl CompiledPattern {
                         input_preview,
                         set,
                         missing_evidence,
-                        input_tokens,
+                        input_tokens_preview,
                         matcher_desc
                     );
                     return false;
@@ -173,42 +172,6 @@ impl CompiledPattern {
         true
     }
 
-    /// 日志内容压缩（智能无拷贝）
-    /// 特性：
-    /// 1. 短字符串（≤max_len）：返回Borrowed（零拷贝）
-    /// 2. 长字符串：截断并替换空格为单空格，添加省略号
-    /// 参数：
-    /// - input: 原始字符串
-    /// - max_len: 最大长度
-    /// 返回：压缩后的字符串（Cow智能指针）
-    #[allow(dead_code)]
-    fn compress_for_log(input: &str, max_len: usize) -> Cow<'_, str> {
-        if input.len() <= max_len {
-            return Cow::Borrowed(input);
-        }
-
-        let mut compressed = String::with_capacity(max_len + 1);
-        let mut last_was_whitespace = false;
-
-        for ch in input.chars() {
-            if ch.is_whitespace() {
-                if !last_was_whitespace {
-                    compressed.push(' ');
-                    last_was_whitespace = true;
-                }
-            } else {
-                compressed.push(ch);
-                last_was_whitespace = false;
-            }
-
-            if compressed.len() >= max_len {
-                compressed.push('…');
-                break;
-            }
-        }
-
-        Cow::Owned(compressed)
-    }
 }
 
 /// 编译后技术规则（完整技术匹配规则）

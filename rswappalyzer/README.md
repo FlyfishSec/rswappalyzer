@@ -1,4 +1,4 @@
-# rswappalyzer
+# rswappalyzer 🚀
 
 A high-performance Wappalyzer rule detection engine.
 
@@ -6,7 +6,7 @@ A high-performance Wappalyzer rule detection engine.
 
 ---
 
-## Installation | 安装
+## Installation 📦 | 安装
 
 Add this to your `Cargo.toml`:
 
@@ -14,7 +14,7 @@ Add this to your `Cargo.toml`:
 cargo add rswappalyzer
 ```
 
-## Quick Start | 快速开始
+## Quick Start ⚡ | 快速开始
 
 ```rust
 use reqwest::Client;
@@ -52,7 +52,7 @@ Output:
 }
 ```
 
-## Performance | 性能
+## Performance ⚡ | 性能
 
 - **Throughput:** ~2,089 QPS (Windows, 4 cores)
 - **Avg Latency:** ~0.47 ms
@@ -63,7 +63,11 @@ Output:
 cargo run --release --example benchmark_detect_concurrent
 ```
 
-## Data Sources | 规则源
+## Enjoy it! 🚀
+
+Happy hacking with rswappalyzer!
+
+## Data Sources 📚 | 规则源
 
 The following projects are used as rule sources:
 
@@ -76,7 +80,7 @@ The following projects are used as rule sources:
 - **Wappalyzer (HTTPArchive)**  
   <https://github.com/HTTPArchive/wappalyzer>
 
-## References | 参考项目
+## References 🧩 | 参考项目
 
 - **RustedWappalyzer**  
   <https://github.com/shart123456/RustedWappalyzer>
@@ -84,13 +88,9 @@ The following projects are used as rule sources:
 - **wappalyzergo**  
   <https://github.com/projectdiscovery/wappalyzergo>
 
-## Author | 作者
-
-FlyfishSec
-
 ---
 
-## License | 许可证
+## License 📄 | 许可证
 
 This project is licensed under the MIT License.  
 本项目基于 **MIT 许可证** 开源。

@@ -19,6 +19,11 @@ pub struct CompiledRuleLibrary {
     pub tech_meta: FxHashMap<String, TechBasicInfo>,
     /// 无最小证据规则（按 scope 维度） scope -> techs
     pub evidence_index: FxHashMap<String, FxHashMap<PruneScope, FxHashSet<String>>>,
+    /// 规则库中所有已知的证据集token（全局唯一）
+    pub known_tokens: FxHashSet<String>, 
+    /// 按 scope 的派生加速索引
+    pub known_tokens_by_scope: FxHashMap<PruneScope, FxHashSet<String>>,
+    /// 无最小证据规则（按 scope 维度） scope -> techs
     pub no_evidence_index: FxHashMap<PruneScope, FxHashSet<String>>,
 }
 

@@ -12,20 +12,91 @@ pub fn collect_candidate_techs<'a>(
     scope: PruneScope,
 ) -> FxHashSet<&'a String> {
     // 调试旁路：可指定任意要调试的技术名称
-    // if scope == PruneScope::Header {
-    //     debug_compiled_rule_library(compiled_lib, input_tokens, scope, "Apache Tomcat");
+    // if scope == PruneScope::Html {
+    //     dbg!(&input_tokens.len());
+    //     dbg!(&input_tokens);
+    //     //debug_compiled_rule_library(compiled_lib, input_tokens, scope, "Apache Tomcat");
     // }
+    
+    // 按scope精准过滤输入token
+    // 1. 获取当前scope的已知token集合
+    let Some(scope_known_tokens) = compiled_lib.known_tokens_by_scope.get(&scope) else {
+        return FxHashSet::default(); // 该scope无已知token，直接返回空
+    };
+    // 2. 提前过滤：仅保留输入token中「当前scope已知的token」
+    let filtered_tokens: FxHashSet<_> = input_tokens
+        .intersection(scope_known_tokens) // 求交集
+        .collect();
 
     let mut candidates = FxHashSet::default();
-    for token in input_tokens {
+    // 遍历过滤后的token（数量大幅减少）
+    for token in filtered_tokens {
         if let Some(scope_to_techs) = compiled_lib.evidence_index.get(token.as_str()) {
-            if let Some(tech_names) = scope_to_techs.get(&scope) {
-                for tech_name in tech_names {
-                    candidates.insert(tech_name);
-                }
+            // 此处可unwrap：因为filtered_tokens已保证token在当前scope的known_tokens中
+            let tech_names = scope_to_techs.get(&scope).unwrap();
+            for tech_name in tech_names {
+                candidates.insert(tech_name);
             }
         }
     }
+    candidates
+}
+
+#[allow(dead_code)]
+pub fn collect_candidate_techs_log<'a>(
+    compiled_lib: &'a CompiledRuleLibrary,
+    input_tokens: &FxHashSet<String>,
+    scope: PruneScope,
+) -> FxHashSet<&'a String> {
+    let start = std::time::Instant::now();
+    let mut total_tech_count = 0;
+    let mut candidates = FxHashSet::default();
+
+    // 按scope精准过滤
+    let (filtered_tokens, current_scope_evidence_token_total) = match compiled_lib.known_tokens_by_scope.get(&scope) {
+        Some(scope_known) => {
+            // 求交集：仅保留当前scope的有效token
+            let filtered: FxHashSet<_> = input_tokens.intersection(scope_known).collect();
+            (filtered, scope_known.len())
+        }
+        None => (FxHashSet::default(), 0),
+    };
+    // 短路：无有效token直接返回
+    if filtered_tokens.is_empty() {
+        log::debug!(
+            "候选收集调试 | 所有scope证据token总数={} | 当前scope({:?})证据token数={} | 输入token数={} | 内层遍历技术数=0 | 最终候选数=0 | 耗时={}ms",
+            compiled_lib.known_tokens.len(), // 全局known_tokens.len()（O(1)）
+            scope,
+            current_scope_evidence_token_total,
+            input_tokens.len(),
+            start.elapsed().as_millis()
+        );
+        return FxHashSet::default();
+    }
+
+    // 遍历过滤后的token（数量大幅减少）
+    for token in &filtered_tokens {
+        let scope_to_techs = compiled_lib.evidence_index.get(token.as_str()).unwrap();
+        let tech_names = scope_to_techs.get(&scope).unwrap();
+        total_tech_count += tech_names.len();
+        for tech_name in tech_names {
+            candidates.insert(tech_name);
+        }
+    }
+
+    // 打印日志
+    log::debug!(
+        "候选收集调试 | 所有scope证据token总数={} | 当前scope({:?})证据token数={} | 输入token数={} | 过滤后有效token数={} | 内层遍历技术数={} | 最终候选数={} | 耗时={}ms",
+        compiled_lib.known_tokens.len(), // 全局known_tokens（O(1)）
+        scope,
+        current_scope_evidence_token_total,
+        input_tokens.len(),
+        filtered_tokens.len(),
+        total_tech_count,
+        candidates.len(),
+        start.elapsed().as_millis()
+    );
+
     candidates
 }
 
@@ -202,4 +273,21 @@ pub fn debug_compiled_rule_library(
     }
 
     log::debug!("\n===== 【{}】调试结束 =====\n", target_tech_name);
+}
+
+/// 统计【指定scope下的所有证据集token数量】（规则库静态指标）
+/// 核心逻辑：遍历所有证据token，判断是否关联当前scope，关联则计数
+#[inline(always)]
+pub fn count_scope_evidence_tokens(
+    compiled_lib: &CompiledRuleLibrary,
+    scope: PruneScope,
+) -> usize {
+    // 遍历evidence_index的Key（证据token），筛选关联当前scope的token
+    compiled_lib
+        .evidence_index
+        .iter()
+        // 条件：该证据token的scope映射中包含当前scope
+        .filter(|(_token, scope_to_techs)| scope_to_techs.contains_key(&scope))
+        // 计数
+        .count()
 }

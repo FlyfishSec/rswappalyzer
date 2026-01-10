@@ -376,7 +376,7 @@ impl TechDetector {
     /// - body: HTTP响应体（字节数组）
     /// 返回：检测结果 | 错误
     #[inline(always)]
-    pub fn detect_with_time(
+    pub fn detect_log(
         &self,
         headers: &HeaderMap,
         urls: &[&str],
@@ -645,11 +645,11 @@ pub async fn detect(headers: &HeaderMap, urls: &[&str], body: &[u8]) -> RswResul
 /// - body: HTTP响应体（字节数组）
 /// 返回：检测结果 | 错误
 #[inline(always)]
-pub async fn detect_with_time(
+pub async fn detect_log(
     headers: &HeaderMap,
     urls: &[&str],
     body: &[u8],
 ) -> RswResult<DetectResult> {
     let detector = super::global::get_global_detector().await?;
-    detector.detect_with_time(headers, urls, body)
+    detector.detect_log(headers, urls, body)
 }

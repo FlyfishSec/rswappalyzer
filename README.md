@@ -14,7 +14,7 @@ Add this to your `Cargo.toml`:
 cargo add rswappalyzer
 ```
 
-Quick Start ⚡ | 快速开始
+## Quick Start ⚡ | 快速开始
 
 ```rust
 use reqwest::Client;

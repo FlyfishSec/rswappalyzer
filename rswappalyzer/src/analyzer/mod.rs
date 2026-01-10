@@ -1,16 +1,19 @@
-use rswappalyzer_engine::{CompiledRuleLibrary, CompiledTechRule, scope_pruner::PruneScope};
+use std::time::Instant;
+
+use log::debug;
+use rswappalyzer_engine::{scope_pruner::PruneScope, CompiledRuleLibrary, CompiledTechRule};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{analyzer::candidate_collector::collect_candidate_techs};
+use crate::analyzer::candidate_collector::collect_candidate_techs;
 
+pub mod candidate_collector;
 pub mod common;
-pub mod url;
+pub mod cookie;
 pub mod header;
 pub mod html;
 pub mod meta;
 pub mod script;
-pub mod cookie;
-pub mod candidate_collector;
+pub mod url;
 
 /// 所有分析器的通用抽象特质
 /// 核心：为泛型D添加 ?Sized 约束，兼容 str/[T] 等动态大小类型(DST)
@@ -44,7 +47,8 @@ pub trait Analyzer<P: ?Sized, D: ?Sized> {
     ) where
         Self: Sized,
     {
-        let (candidate_tech_names, input_tokens) = build_candidate_techs(compiled_lib, token_iter, scope);
+        let (candidate_tech_names, input_tokens) =
+            build_candidate_techs(compiled_lib, token_iter, scope);
 
         // 遍历候选技术
         for tech_name in candidate_tech_names {
@@ -76,16 +80,83 @@ where
 {
     let mut tokens = FxHashSet::default();
     for data in data_iter {
-        tokens.extend(crate::utils::extractor::token_extract_zh::extract_input_tokens(data.as_ref()));
+        tokens
+            .extend(crate::utils::extractor::token_extract_zh::extract_input_tokens(data.as_ref()));
     }
 
     // 1. 传入维度，筛选当前维度下的证据候选技术
-    let mut candidate_techs = collect_candidate_techs(compiled_lib, &tokens, scope);
+    let mut candidate_techs =
+        candidate_collector::collect_candidate_techs(compiled_lib, &tokens, scope);
 
     // 2. 适配维度化的无证据索引：只加载当前维度下的无证据技术
     if let Some(no_evidence_techs) = compiled_lib.no_evidence_index.get(&scope) {
         candidate_techs.extend(no_evidence_techs.iter());
     }
+
+    (candidate_techs, tokens)
+}
+
+#[inline(always)]
+#[allow(dead_code)]
+fn build_candidate_techs_log<'a, I>(
+    compiled_lib: &'a CompiledRuleLibrary,
+    data_iter: I,
+    scope: PruneScope,
+) -> (FxHashSet<&'a String>, FxHashSet<String>)
+where
+    I: IntoIterator,
+    I::Item: AsRef<str>,
+{
+    // ========== 整体耗时起点 ==========
+    let total_start = Instant::now();
+
+    // ========== 1. Token提取阶段（重点统计） ==========
+    let token_start = Instant::now();
+    let mut tokens = FxHashSet::default();
+    for data in data_iter {
+        tokens
+            .extend(crate::utils::extractor::token_extract_zh::extract_input_tokens(data.as_ref()));
+    }
+    // 计算Token提取耗时
+    let token_duration = token_start.elapsed();
+    // 打印Token生成耗时（两种方式选其一）
+    // 方式1：用日志（推荐，可控制级别）
+    debug!(
+        "[{}维度] Token生成耗时: {}ms | 生成Token数量: {}",
+        format!("{:?}", scope), // 打印维度（Header/Body/Url）
+        token_duration.as_millis(),
+        tokens.len()
+    );
+    // 方式2：直接打印到终端（调试用）
+    // eprintln!(
+    //     "[{}维度] Token生成耗时: {}ms | 生成Token数量: {}",
+    //     format!("{:?}", scope),
+    //     token_duration.as_millis(),
+    //     tokens.len()
+    // );
+
+    // ========== 2. 候选技术收集阶段 ==========
+    let candidate_start = Instant::now();
+    let mut candidate_techs = collect_candidate_techs(compiled_lib, &tokens, scope);
+    let candidate_duration = candidate_start.elapsed();
+
+    // ========== 3. 无证据技术合并阶段 ==========
+    let no_evidence_start = Instant::now();
+    if let Some(no_evidence_techs) = compiled_lib.no_evidence_index.get(&scope) {
+        candidate_techs.extend(no_evidence_techs.iter());
+    }
+    let no_evidence_duration = no_evidence_start.elapsed();
+
+    // ========== 整体耗时统计 ==========
+    let total_duration = total_start.elapsed();
+    debug!(
+        "[{}维度] 构建候选技术总耗时: {}ms | Token提取: {}ms | 候选收集: {}ms | 无证据合并: {}ms",
+        format!("{:?}", scope),
+        total_duration.as_millis(),
+        token_duration.as_millis(),
+        candidate_duration.as_millis(),
+        no_evidence_duration.as_millis()
+    );
 
     (candidate_techs, tokens)
 }

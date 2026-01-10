@@ -5,7 +5,7 @@
 //! 3. 高性能：内联优化、FxHashMap适配、无冗余计算
 //! 4. 易接入：模块化设计，可直接集成到任意Rust项目
 
-use rswappalyzer_engine::preview::preview_compact;
+use rswappalyzer_engine::log_format::preview_compact;
 use rustc_hash::FxHashMap;
 
 use crate::DetectionUpdater;

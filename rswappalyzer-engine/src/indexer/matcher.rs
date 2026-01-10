@@ -1,10 +1,9 @@
 use crate::{
-    core::{MatchType, Pattern},
-    regex_literal::{self, extract_or_branch_literals},
+    StructuralPrereq, core::{MatchType, Pattern}, min_evidence::MinEvidenceMeta, regex_literal::{extract_longest_static_substr_from_regex, extract_or_branch_literals}
 };
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex, RegexBuilder};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxHashMap};
 use std::sync::{Arc, RwLock};
 
 /// 全局空正则常量（预编译，用于错误回退）
@@ -67,7 +66,7 @@ impl Matcher {
             } => {
                 // 构建缓存Key（Arc clone仅增加引用计数，零拷贝）
                 let cache_key = (pattern.clone(), *case_insensitive);
-                
+
                 // 1. 读锁查询缓存（无锁竞争）
                 let cache_read = REGEX_CACHE.read().unwrap();
                 if let Some(re) = cache_read.get(&cache_key) {
@@ -178,13 +177,13 @@ impl Matcher {
 }
 
 /// 结构前置条件扩展方法
-impl super::StructuralPrereq {
+impl StructuralPrereq {
     /// 从Matcher自动提取结构前置条件（编译期执行）
     /// 核心逻辑：
     /// 1. 短字符串（≤2）：返回None
     /// 2. 长字符串：返回RequiresSubstring
     /// 3. 正则：提取OR分支字面量，返回RequiresSubstring/RequiresAny
-    pub fn from_matcher(matcher: &Matcher) -> Self {
+    pub fn from_matcher_old(matcher: &Matcher) -> Self {
         match matcher {
             Matcher::Contains(s) => {
                 let s = s.as_str();
@@ -211,9 +210,7 @@ impl super::StructuralPrereq {
         }
     }
 
-    /// 旧版结构前置条件提取逻辑（兼容用）
-    #[inline(always)]
-    pub fn from_matcher_old(matcher: &Matcher) -> Self {
+    pub fn from_matcher(matcher: &Matcher) -> Self {
         match matcher {
             Matcher::Contains(s) => {
                 let s = s.as_str();
@@ -224,13 +221,24 @@ impl super::StructuralPrereq {
                 }
             }
             Matcher::LazyRegex { pattern, .. } => {
-                let literals = regex_literal::extract_or_branch_literals(pattern.as_str());
-                if literals.len() == 1 {
-                    super::StructuralPrereq::RequiresSubstring(literals.into_iter().next().unwrap())
-                } else if literals.len() > 1 {
-                    super::StructuralPrereq::RequiresAny(literals)
-                } else {
-                    super::StructuralPrereq::None
+                let pattern_str = pattern.as_str();
+                
+                // 步骤1：先尝试提取OR分支（兼容捕获组/非捕获组/无分组）
+                let mut literals = extract_or_branch_literals(pattern_str);
+                
+                // 步骤2：如果无OR分支，提取最长静态子串
+                if literals.is_empty() {
+                    let static_substr = extract_longest_static_substr_from_regex(pattern_str);
+                    if !static_substr.is_empty() {
+                        literals.push(static_substr);
+                    }
+                }
+
+                // 步骤3：根据提取结果生成结构前置
+                match literals.len() {
+                    1 => super::StructuralPrereq::RequiresSubstring(literals.swap_remove(0)),
+                    n if n > 1 => super::StructuralPrereq::RequiresAny(literals),
+                    _ => super::StructuralPrereq::None,
                 }
             }
             Matcher::Exists => super::StructuralPrereq::None,
@@ -247,13 +255,29 @@ impl super::StructuralPrereq {
 /// 返回：匹配门控实例
 #[inline(always)]
 pub fn fold_to_match_gate(
-    min_evidence: FxHashSet<String>,
-    structural_prereq: super::StructuralPrereq,
+    min_evidence_meta: MinEvidenceMeta,
+    structural_prereq: StructuralPrereq,
 ) -> super::MatchGate {
-    // 优先级1: 最小证据剪枝（非空即返回）
-    if !min_evidence.is_empty() {
-        return super::MatchGate::RequireAll(min_evidence);
+    let token_len = min_evidence_meta.tokens.len();
+
+    // 分级判断：核心逻辑
+    let is_high_confidence = if token_len == 1 {
+        // 单token场景：仅当原始串长度≥6时，判定为高可信度（避免弱token）
+        // 阈值6：覆盖"js-cms"（6）、"vue-cms"（7）等场景
+        min_evidence_meta.source_len >= 3
+    } else {
+        // 多token场景：避免{"js","css"}这类弱组合
+        let total_token_len: usize = min_evidence_meta.tokens.iter().map(|t| t.len()).sum();
+        token_len > 1 && total_token_len >= 3
+    };
+
+    // 优先级1：高可信度最小证据 → RequireAll
+    if is_high_confidence {
+        return super::MatchGate::RequireAll(min_evidence_meta.tokens);
     }
+
+    // 优先级2：低可信度最小证据（单token+短原始串）→ 降级到结构前置
+    // （这里不返回RequireAll，直接走结构前置逻辑）
 
     // 优先级2: 结构前置剪枝
     match structural_prereq {

@@ -2,7 +2,7 @@
 pub mod version_extractor;
 pub mod header_converter;
 pub mod detection_updater;
-//pub mod preview;
+//pub mod log_format;
 pub mod extractor;
 
 pub use self::version_extractor::VersionExtractor;

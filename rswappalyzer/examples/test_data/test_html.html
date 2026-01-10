@@ -1,0 +1,1491 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<base href="https://gaj.sh.gov.cn/shga/" />
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<title>::上海市公安局::</title>
+<base href="https://gaj.sh.gov.cn/shga/" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="SiteName" content="上海市公安局">
+<meta name="SiteDomain" content="gaj.sh.gov.cn">
+<meta name="SiteIDCode" content="3100000015">
+<meta name="ColumnName" content="">
+<meta name="ColumnDescription" content="">
+<meta name="ColumnKeywords" content="">
+<meta name="ColumnType" content="">
+
+
+<meta name="ContentSource" content="上海市公安局">
+<script type="text/javascript">var objectName = "https://gaj.sh.gov.cn/shga/";</script>
+
+
+
+<link type="text/css" rel="stylesheet" href="https://gaj.sh.gov.cn/shga/resource/css/jquery.flexbox.css" />
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/jquery-1.8.1.min.js"></script>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/page.js"></script>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/jquery.flexbox.js"></script>
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/layer/layer.js"></script>
+
+<script type="text/javascript" src="resource/js/My97DatePicker/WdatePicker.js"></script>
+<script type="text/javascript" src="resource/js/My97DatePicker/lang/zh-cn.js"></script>
+
+<link rel="stylesheet" href="https://gaj.sh.gov.cn/shga/resource/js/jBox/Skins/GreyBlue/jbox.css" type="text/css"/>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/jBox/jquery.jBox-2.3.min.js"></script>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/jBox/i18n/jquery.jBox-zh-CN.js"></script>
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/jquery.validate.js"></script> 
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/localization/messages_zh.js"></script>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/common/owncheck.js"></script> 
+
+<link rel="stylesheet" href="https://gaj.sh.gov.cn/shga/resource/js/ztree/css/zTreeStyle/zTreeStyle.css" type="text/css"/>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/ztree/js/jquery.ztree.core-3.5.js"></script>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/jquery.ztree.all-3.5.min.js"></script>
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/common/jquery.form.js"></script>
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/huiyi8.js"></script>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/tab.js"></script> 
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/ytabs.js"></script> 
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/koala.min.1.5.js"></script>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/terminator2.2.min.js"></script>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/mycheck.js"></script>
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/wysoft_page.js"></script>
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/sticky.full.js"></script>
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/shgaRegex.js"></script>
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/common/common.js"></script>
+
+<link rel="stylesheet" type="text/css" href="https://gaj.sh.gov.cn/shga/resource/css/news-common.css">
+<link rel="stylesheet" type="text/css" href="https://gaj.sh.gov.cn/shga/resource/css/index-mobile.css">
+
+
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/notice_ad.js"></script>
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/js/AriaLabelsFromTitle.js"></script>
+
+<script type="text/javascript" src="https://gaj.sh.gov.cn/shga/resource/wza/jhelper_config.js"></script>
+
+<script type="text/javascript">
+	jQuery(document).ready(function () {
+        //getToolbarMod();
+    });
+</script>
+
+<script type="text/javascript">
+//var jQuery_1_8_2 = $.noConflict(true);
+//DD_belatedPNG.fix('div,img');
+</script>
+
+<script type="text/javascript">
+	// 加载绑定日期控件
+	$(document).ready(function() {
+
+		$('.dataPickerBtn').each(function() {
+			$(this).attr("readonly","readonly");
+			$(this).live("click", function() {
+				WdatePicker({dateFmt:'yyyy-MM-dd'});
+			});
+		});
+		// 指定图片指针放大
+		$(".imgbb, .look").each(function(){
+			$(this).bind("mouseover", function(){
+				$($(this).parent()).css("position","relative");
+				var left1 = 0;
+				var top1 = 0;
+				try{
+					left1 = this.offsetLeft - 2;
+					top1 = this.offsetTop - 2;
+				}catch(e){}
+				$($(this).parent()).append("<img src='"+this.src+"' width='130' onmouseout='$(this).remove();' style='position: absolute; top:"+top1+"px; left:"+left1+"px;' />")
+			});
+		});
+		
+    });
+    
+    //单点登录
+    function singleLogin(redirect_uri){
+    	var loginStr = $("#loginInfo").html();
+    	if(loginStr.indexOf("注销") > -1){
+			var params = {
+	    		"redirect_uri": redirect_uri //跳转地址
+	    	}
+	    	$.ajax({
+				url: "https://gaj.sh.gov.cn/shga/singleLogin",
+				async: true,
+				timeout: 10000,
+				data: params,
+				type: "post",
+				dataType: 'text',
+				success: function(resp) {
+					window.location.href = resp;
+				},
+				error: function(XMLHttpRequest, textStatus, errorThrown) {
+					console.error(JSON.stringify(XMLHttpRequest));
+					console.error(JSON.stringify(textStatus));
+					console.error(JSON.stringify(errorThrown));
+				}
+			});
+		}else{
+    		window.location.href = redirect_uri;
+		}
+    }
+</script>
+
+<script type="text/javascript">
+	//信访大厅登录判断
+	function gotoXx(pa){
+		var userName = "";
+		var userYzbz = "";
+		if(!userName){
+			alert("您还没有登录，请先登录！");
+			toYwtbLogin(); // 增加提示并跳转到一网通办登录
+		}else if(userYzbz=="0"){
+			alert("您的账号正在实名认证中！");
+		}else if(userYzbz=="9"){
+			alert("您的账号尚未进行实名认证，请登录个人中心进行实名认证！");
+		}else{
+			window.open("https://gaj.sh.gov.cn/shga/wzXfdtJbxx/xfdtXx?pa="+pa);
+		}
+	}	
+</script>
+<script>
+//begin---------------上下左右键控制
+if(true){
+
+var texts = new Array();
+//设置为focus所在的location
+var x = 2;
+var y = 3;
+var maxx = 0;
+var maxy = 0;
+window.onload=function(){
+var inputs = $("[location]");
+for(var i = 0; i < inputs.length; i++){
+texts.push(inputs[i]);
+}
+for(var i = 0; i < texts.length; i++){
+texts[i].onfocus = new Function("setCurrent('" + texts[i].getAttribute("location") + "')");
+var crtx = parseInt(texts[i].getAttribute("location").split(",")[0]);
+var crty = parseInt(texts[i].getAttribute("location").split(",")[1]);
+maxx = maxx < crtx ? crtx : maxx;
+maxy = maxy < crty ? crty : maxy;
+texts[i].onkeydown = function(e){
+e = e || window.event;
+switch(e.keyCode){
+case 38:setPosition(x,y,38);break;// 上
+case 40:setPosition(x,y,40);break;// 下
+case 37:setPosition(x,y,37);break;// 左
+case 39:setPosition(x,y,39);break;// 右
+case 45:setPosition(x,y,45);break; // Insert键/返回键 在输入框里是删除且输入库有值时是删除 其他为返回上一页
+default:return true;
+}
+};
+}
+};
+function setPosition(x,y,keyCode){
+
+//此处加入动态改变位置的逻辑----begin
+//上下时，只改动y坐标，x坐标自动改变
+//左右时，只改动x坐标，y坐标自动改变
+if(keyCode == '38' && x == '3'){
+if(y=='3'||y=='4'||y=='5'||y=='6'||y=='7'||y=='8'){
+y='3';
+}
+}
+if(keyCode == '40' && x == '4'){
+if(y=='3'||y=='4'||y=='5'||y=='6'||y=='7'||y=='8'){
+y='3';
+}
+}
+//此处加入动态改变位置的逻辑----end
+
+if(keyCode == '38'){
+x = --x;
+}
+if(keyCode == '40'){
+x = ++x;
+}
+if(keyCode == '37'){
+y = --y;
+}
+if(keyCode == '39'){
+y = ++y;
+}
+movePosition(x,y,keyCode);
+}
+function movePosition(x1,y1,keyCode){
+if(keyCode == '45'){
+//光标所在的对象是input时
+var st = x1+","+y1;
+if($("input[location='"+st+"']").attr("type")=="text"){
+var oldval = $("input[location='"+st+"']").val();
+var newval = oldval.substring(0,oldval.length-1);
+$("input[location='"+st+"']").val(newval);
+return false;
+}else{
+history.go(-1);
+return false;
+}
+}
+x1 = x1 > maxx ? 1 : x1;
+y1 = y1 > maxy ? 1 : y1;
+x1 = x1 < 1 ? maxx : x1;
+y1 = y1 < 1 ? maxy : y1;
+
+var j = 0;
+for(; j < texts.length; j++){
+if(texts[j].getAttribute("location") == x1 + "," + y1){
+texts[j].focus();
+break;
+}
+}
+if(j == texts.length){
+switch(keyCode){
+case 38:movePosition(--x1,y1,keyCode);break;// 上
+case 40:movePosition(++x1,y1,keyCode);break;// 下
+case 37:movePosition(x1,--y1,keyCode);break;// 左
+case 39:movePosition(x1,++y1,keyCode);break;// 右
+}
+}
+}
+function setCurrent(location){
+x = location.split(",")[0];
+y = location.split(",")[1];
+}
+}
+//end---------------上下左右键控制
+</script>
+
+<script type="text/javascript"> 
+    function toYwtbLogin(){
+    	var msg_centext="<span style='font-size:13px; text-indent: 2em;padding:25px;'>本网站已对接市政府“一网通办”统一用户体系，点击确认后将跳转至“一网通办”登录界面。</span>";
+    	$.jBox.open(msg_centext, "登录提示", 250, 180, { 
+    		timeout: 5000, 
+    		showType: 'fade', 
+    		showSpeed: 'slow', 
+    		opacity: 0.2, 
+    		draggable: false, 
+    		closed: function(){
+    			window.location.href = "https://gaj.sh.gov.cn/shga/wzUserRegister/loginPage";
+    		} 
+    	});
+    }
+</script>
+<style>#gjnr span{display: inline!important;}</style>	<link rel="stylesheet" type="text/css" href="https://gaj.sh.gov.cn/shga/resource/css/index-sj.css">
+	
+</head>
+<style type="text/css">
+.jmhu_zxqz_ywbm_fxj { color:#2f4e9a;   background:url(https://gaj.sh.gov.cn/shga//resource/img/jmhu_zxqz_ywbm_jt.png) no-repeat right;  width:114px; padding-right:10px; }
+
+	.zfxxgk-btns{
+		
+	}
+	.zfxxgk-btns dt{
+		width: 230px;
+		margin-right: 7px;
+		margin-bottom: 5px;
+		display: inline-block;
+		border: solid 1px #2d66a5;
+		height: 43px;
+	}
+	.zfxxgk-btns dt i{
+		float: left;
+		cursor: pointer;
+		line-height: 28px;
+		width: 60px;
+		height: 42px;
+	}
+	.zfxxgk-btns dt span{
+		float: left;
+		line-height: 42px;
+		font-size: 16px;
+		margin-left: 10px;
+	}
+	.echo-describe{display:none;}
+	/*图标*/
+	.gkzn-select{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-gkzn-select.png') center no-repeat;}
+	.gkzn-select-un{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-gkzn-un-select.png') center no-repeat;}
+	.gknb-select{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-gknb-select.png') center no-repeat;}
+	.gknb-select-un{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-gknb-un-select.png') center no-repeat;}
+	.gkzd-select{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-gkzd-select.png') center no-repeat;}
+	.gkzd-select-un{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-gkzd-un-select.png') center no-repeat;}
+	.gknr-select{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-gknr-select.png') center no-repeat;}
+	.gknr-select-un{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-gknr-un-select.png') center no-repeat;}
+	.ysqgk-select{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-ysqgk-select.png') center no-repeat;}
+	.ysqgk-select-un{ background: url('https://gaj.sh.gov.cn/shga/resource/img/zfxxgk-left-ysqgk-un-select.png') center no-repeat;}
+
+	.hd-right .hddj{height: 170px; background: url('https://gaj.sh.gov.cn/shga/resource/images/help.png') no-repeat #ededed 0px; margin-top: 13px;}
+	.hd-right .hddj .dianji{height: 97px; line-height: 30px; font-size: 15px; margin-top: 14px;}
+</style>
+<body>
+	<div class="body-bg" id="container">
+		<div class="ph-bg">
+				<!-- 头部开始 -->
+			<div class="heading" id="header">
+				<div class="heading-tl">
+					<div class="top" id="login">
+						<p class="ppt">
+							<img src="https://gaj.sh.gov.cn/shga/resource/img/wu.png">
+							<a href="javascript:;" style="cursor: pointer; color:#FFF;" id="cniil_wza" onclick="aria.start()" title="无障碍浏览工具"><span class="opo">无障碍</span></a>
+							<a href="javascript:void(0)" onclick="aria.oldFixedStart()" title="点击打开关怀版"><span class="opo">关怀版</span></a>
+							<a href="https://gaj.sh.gov.cn/shga/englishweb/toIndex" title="点击打开英文页面"><span class="opo">English</span> </a>
+						</p>
+						<div id="loginInfo" style="display: inline-block;margin-left:10px; color:#fff;">
+							<input type="button" class="btn1" value="登录" title="点击进入登录页面" onclick="toYwtbLogin();"/>
+							<input type="button" class="btn2" value="注册" title="点击进入注册页面" onclick="location.href='https://zwdtuser.sh.gov.cn/uc/register/register.html';"/>
+						</div>
+					</div>
+					<div class="logo_">
+						<h1><a href="https://gaj.sh.gov.cn/shga/toIndex" style="border:0px;" title="上海市公安局"><img src="https://gaj.sh.gov.cn/shga/resource/images/logo.png"></a></h1>
+						<h2><img style="margin-top: 13px;" src="https://gaj.sh.gov.cn/shga/resource/images/js.png" title="上海城市精神" ></h2>
+						<div class="box-ss" id="search">
+							<div class="shgaygjw_font"><img src="https://gaj.sh.gov.cn/shga/resource/images/shgaygjw_top_img.png" width="300" title="上海公安阳光警务"></div>
+							<div style="margin: auto; width: 355px; padding-bottom:5px;">
+								<div style="width: 115px; display: inline-block;"><img style="margin: auto" src="https://gaj.sh.gov.cn/shga/resource/images/yzsfw.png" title="一站式服务"></div>
+								<div style="width: 115px; display: inline-block;"><img style="margin: auto" src="https://gaj.sh.gov.cn/shga/resource/images/ycsgk.png" title="一窗式公开"></div>
+								<div style="width: 115px; display: inline-block; padding-bottom: initial;"><img style="margin: auto" src="https://gaj.sh.gov.cn/shga/resource/images/ywsbl.png" title="一网式办理"></div>
+							</div>
+							<form id="indexSearch" action="" method="post" target="indexSearch">
+							<div class="search_panel">
+								<input type="text" onkeydown="entersearch()" class="inputdd" name="searchChar" id="searchChar" value="" title="全文检索输入框"/>
+								<input id="searchLm" name="lm" value="" type="hidden" />
+			                	<input id="searchType" name="type" value="3" type="hidden" />
+			                	<input id="searchWz" name="wz" value="" type="hidden" />
+								<img src="https://gaj.sh.gov.cn/shga/resource/images/topcx.png" onclick="search_nr()" class="hhimg" title="点击进行全文检索" />
+							</div>
+							<ul>
+								<li>热门搜索：</li>
+								<!--<a href="http://zwdt.sh.gov.cn/govPortals/organ_index.do?organ=SHGASH" title="一网通办"><li style="margin-left: 17px;">一网通办</li> </a>-->
+								<a href="http://zwdt.sh.gov.cn/govPortals/organ_index.do?organ=SHGASH" title="办事指南"><li style="margin-left: 17px;">办事指南</li></a>
+								<a href="https://gaj.sh.gov.cn/shga/toShgarx" title="在线咨询"><li style="margin-left: 17px;">在线咨询</li></a>
+								<a href="https://gaj.sh.gov.cn/shga/sfmlqd" title="收费清单"><li style="margin-left: 17px;">收费清单</li></a>
+								<!--<a href="https://gaj.sh.gov.cn/shga/toIndex?showpanel=ywtb" title="便民服务"><li style="margin-left: 22px;">便民服务</li></a>-->
+								<a href="https://gaj.sh.gov.cn/shga/vXtglJgsz/index" title="对外窗口查询"><li style="margin-left: 17px;">对外窗口查询</li></a>
+							</ul>
+							</form>
+						</div>
+					</div>
+				</div>							
+				
+			</div>
+			<!-- 头部结束 -->
+			
+		<script>
+			// 注销登录
+			function logout(){
+				if(!confirm("是否确认注销登录？")){
+					return false;
+				}
+				$.ajax({
+					type:"post",
+					url:"https://gaj.sh.gov.cn/shga/wzUserRegister/logout",
+					dataType : 'json',
+					success:function(data){
+						$("#loginInfo").html("");
+			            var loginHtml = "<a href=\"javascript:void(0);\"><input type=\"button\" class=\"btn1\" style=\"margin-right: 3px;\" onclick=\"toYwtbLogin();\" value=\"登录\" title=\"点击进入登录页面\"/></a>";
+				            loginHtml += "<a href=\"https://zwdtuser.sh.gov.cn/uc/register/register.html\"><input type=\"button\" class=\"btn2\" value=\"注册\" title=\"点击进入注册页面\"/></a>";
+			            $("#loginInfo").attr("class","login_box");
+			            $("#loginInfo").append(loginHtml)
+					}
+				});
+			}
+	
+			//验证码刷新
+			function refreshValidateCode(o){ 
+				//重载验证码 
+				var timenow = new Date().getTime(); 
+				o.src="https://gaj.sh.gov.cn/shga/baseCommon/getVerCode?d="+timenow; 
+			}
+		    
+		    // 绑定搜索
+			function search_nr(){
+				var searchChar = $("#searchChar").val();
+				if(!searchChar){
+					/*$.jBox.tip("请先填写检索内容","info");*/
+					alert("请先填写检索内容");
+					return false;
+				}else if(searchChar == "办案进展查询"){
+					paramUrl = "https://gaj.sh.gov.cn/shga/ajcx/search";
+				}else if(searchChar == "脏失物"){
+					paramUrl = "https://gaj.sh.gov.cn/shga/vZswwh/index";
+				}else{
+					paramUrl = "https://gaj.sh.gov.cn/shga/vQsAllSearch";
+				}
+				$("#indexSearch").attr("action",paramUrl);
+				$("#indexSearch").submit();
+			}
+			
+			function entersearch(){
+				var event = window.event || arguments.callee.caller.arguments[0];
+				if(event.keyCode == 13){
+					search_nr();
+				}
+			}
+		</script>
+
+			<!-- 中间内容开始 -->
+			<div class="content" id="main">
+				<div class="one-cons">
+					<div class="one-navs">
+						<ul id="mainNav" role="tablist">
+							<li class="currents" id="jwbd_title" tabindex="0" role="tab" aria-selected="true" aria-controls="navs-con-0" aria-label="警务报道">
+								<a href="https://gaj.sh.gov.cn/shga/wzXxfbGj/getJwxxIndex">
+								<img src="https://gaj.sh.gov.cn/shga/resource/images/sd1.png">
+								<span class="kkmm"><h2 class="h2" title="警务报道" aria-label="警务报道">警务报道</h2></span>
+								</a>
+							</li>
+							<li id="zwgk_title" tabindex="0" role="tab" aria-selected="false" aria-controls="navs-con-1" aria-label="政府信息公开">
+								<a href="https://gaj.sh.gov.cn/shga/wzXxfbZfgkml">
+								<img src="https://gaj.sh.gov.cn/shga/resource/images/sd2.png">
+								<span class="kkmm"><h2 class="h2" title="政府信息公开" aria-label="政府信息公开">政府信息公开</h2></span>
+								</a>
+							</li>
+							<li id="zfgk_title" tabindex="0" role="tab" aria-selected="false" aria-controls="navs-con-2" aria-label="执法公开">
+								<a href="https://gaj.sh.gov.cn/shga/zfgk">
+								<img src="https://gaj.sh.gov.cn/shga/resource/images/sd3.png" style="padding:20px;">
+								<span class="kkmm"><h2 class="h2" title="执法公开" aria-label="执法公开">执法公开</h2></span>
+								</a>
+							</li>
+							<li id="ywtb_title" tabindex="0" role="tab" aria-selected="false" aria-controls="navs-con-3" aria-label="一网通办">
+								<a target="_blank" href="http://zwdt.sh.gov.cn/govPortals/organ_index.do?organ=SHGASH">
+								<img src="https://gaj.sh.gov.cn/shga/resource/images/sd4.png">
+								<span class="kkmm"><h2 class="h2" title="一网通办" aria-label="一网通办">一网通办</h2></span>
+								</a>
+							</li>
+							<li id="jmhd_title" tabindex="0" role="tab" aria-selected="false" aria-controls="navs-con-4" aria-label="警民互动">
+								<a href="https://gaj.sh.gov.cn/shga/toShgarx">
+								<img src="https://gaj.sh.gov.cn/shga/resource/images/sd5.png">
+								<span class="kkmm"><h2 class="h2" title="警民互动" aria-label="警民互动">警民互动</h2></span>
+								</a>
+							</li>
+						</ul>					 		
+					</div>
+					<!-- 警务报道 -->
+					<div class="navs-con" style="display:block;">
+						<div class="cons-lefting">
+							<ul>
+							    <li style="display:block;"><a href="https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa=f41aa3d5accbfad14fcbf784730c1c7f3246599c78cf0fe4706201bf3294067a8812420417b2155c080adbf280dc4d82f89cd8d0bb43e938" target="_blank"><img alt="点击打开图片新闻 - 上海公安机关为上海高水平对外开放提供出入境支撑保障，再推7项出入境便民利企创新服务举措" src="https://gaj.sh.gov.cn/shga/css/upload/xxfb/2026-01-09/202601091013308932359736906643.jpg"></a></li>
+							    <li ><a href="https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa=f41aa3d5accbfad14fcbf784730c1c7f3246599c78cf0fe4dcb56e31233f4d78cd6895ffda341e47310bd1f38c526896f89cd8d0bb43e938" target="_blank"><img alt="点击打开图片新闻 - “空中 地面”，黄浦警方多举措守护“上马”每一步" src="https://gaj.sh.gov.cn/shga/css/upload/xxfb/2025-12-05/2025120510524032413110633032904.jpg"></a></li>
+							    <li ><a href="https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa=f41aa3d5accbfad14fcbf784730c1c7f3246599c78cf0fe47757259010e55cb0e3c2cb17f9b30d9e12a1bdc3f1ca6257f89cd8d0bb43e938" target="_blank"><img alt="点击打开图片新闻 - 上海市公安局圆满完成第八届进博会安保任务" src="https://gaj.sh.gov.cn/shga/css/upload/xxfb/2025-11-13/20251113163000546926323267018.jpg"></a></li>
+							    <li ><a href="https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa=f41aa3d5accbfad14fcbf784730c1c7f3246599c78cf0fe4a77be768aacf004647d7a84f14fece44c84c41d7a8015f97f89cd8d0bb43e938" target="_blank"><img alt="点击打开图片新闻 - 上海公安机关圆满完成国庆中秋安保工作" src="https://gaj.sh.gov.cn/shga/css/upload/xxfb/2025-10-11/20251011161918446607157842572.jpg"></a></li>
+							    <li ><a href="https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa=f41aa3d5accbfad14fcbf784730c1c7f3246599c78cf0fe4b205524b5f116d0a5a67a3894e1eb7277a3b96f13930910ff89cd8d0bb43e938" target="_blank"><img alt="点击打开图片新闻 - 上海交警多措并举为新学年保驾护航" src="https://gaj.sh.gov.cn/shga/css/upload/xxfb/2025-09-12/202509121457251440939971027948.jpg"></a></li>
+							</ul>
+							<ol>
+							    <li class="cur"></li>
+							    <li ></li>
+							    <li ></li>
+							    <li ></li>
+							    <li ></li>
+							</ol>
+							<a href="https://gaj.sh.gov.cn/shga/wzXxfbGj/getJwxxIndex"><span class="mores">更 多 +</span></a>
+							<div class="op">
+							    <p class="ppn" style="display:block;">上海公安机关为上海高水平对外开放提供出入境支撑保障，再推7项出入境便民利企创新服务举措</p>
+							    <p class="ppn" >“空中 地面”，黄浦警方多举措守护“上马”每一步</p>
+							    <p class="ppn" >上海市公安局圆满完成第八届进博会安保任务</p>
+							    <p class="ppn" >上海公安机关圆满完成国庆中秋安保工作</p>
+							    <p class="ppn" >上海交警多措并举为新学年保驾护航</p>
+							</div>
+						</div>
+						<!-- 微博 -->
+						<div class="cons-righting">
+							<div class="right-top">
+								<h3 style="font-weight: normal;"><p class="ztc"><b></b>警民直通车</p></h3>
+								<a href="https://gaj.sh.gov.cn/shga/gawb"><span class="moreing">更 多>></span></a>
+							</div>
+							<div style="height:300px;width:332px;padding: 0 4px;overflow:hidden;">
+				    		 <iframe width="100%" height="325" class="share_self"  frameborder="0" scrolling="no" src="https://widget.weibo.com/weiboshow/index.php?language=&width=0&height=325&fansRow=2&ptype=1&speed=0&skin=9&isTitle=0&noborder=0&isWeibo=1&isFans=0&uid=2493592183&verifier=21f26c8a&dpc=1"></iframe>
+				    		    <script type="text/javascript">
+				    		      	var reloadWB = function(){
+				    		      		try{
+				    		      			document.getElementById("TXWB").window.location.reload();
+				    		      		}catch(e){
+				    		      			//alert(e);
+				    		      		}
+				    		      	}
+				    		      	setInterval(reloadWB,1000*60*5);
+				    		    </script>
+							</div>
+						</div>
+						<!-- 微博 -->
+					</div>
+
+					<!-- 警务报道 -->
+					<!-- 政府信息公开 -->
+					<div class="navs-con">
+						<div class="zw-lefting">
+							<h3 style="font-weight: normal;"><p class="gkxx">最新公开信息 <a href="javascript:toXx('https://gaj.sh.gov.cn/shga/wzZfxxnews/index')">更 多 +</a></p></h3>
+							<ol>
+				                 	   <li>
+											<a class="phf" href="javascript:toXxs('110ef360e4374a41371259b51dcd316b7a67df8dc055d4181832aafe0a80433b')">
+												关于本市一起电信网络新型违法犯罪案件冻结资金按比例返还的公示
+											</a>
+											<b class="timeing">[01-08]</b>
+										</li>
+				                 	   <li>
+											<a class="phf" href="javascript:toXxs('110ef360e4374a41ebec74d660867bde939307a0af001048c1310d8623cbecbd')">
+												关于本市二十四起电信网络新型违法犯罪案件冻结资金按比例返还的公示
+											</a>
+											<b class="timeing">[01-05]</b>
+										</li>
+				                 	   <li>
+											<a class="phf" href="javascript:toXxs('110ef360e4374a41f5fee24b538c0e60c26a5cf0803d5ff28242205cdc9d5da8')">
+												关于本市人社信息系统优化维护升级期间 办理居住证、申领社保卡的提示
+											</a>
+											<b class="timeing">[12-30]</b>
+										</li>
+				                 	   <li>
+											<a class="phf" href="javascript:toXxs('110ef360e4374a41edde3a135416c4a015e162876e0db6bcad5f1714cc853b55')">
+												“803反诈”智能体上线，守护群众钱袋子
+											</a>
+											<b class="timeing">[12-30]</b>
+										</li>
+				                 	   <li>
+											<a class="phf" href="javascript:toXxs('110ef360e4374a41ae77802dcc89bae42d3d345ef049157b9a7c36e4f38510c7')">
+												“史上最严”！下月起实施，这一行为最高可拘留10天罚1000元
+											</a>
+											<b class="timeing">[12-29]</b>
+										</li>
+							</ol>
+							<div class="div-botm">
+								<dl class="zfxxgk-btns">
+									<dt class="row2 zfxxgk-left-unselect" type="gkzn" >
+										<a href="wzXxfbZfgkml?type=gkzn">
+											<i class="gkzn-select-un">&nbsp;</i>
+											<span>政府信息公开指南</span>
+										</a>
+									</dt>
+									<dt class="row2 zfxxgk-left-unselect" type="gkzd">
+										<a href="wzXxfbZfgkml?type=gkzd" target="_blank">
+											<i class="gkzd-select-un">&nbsp;</i>
+											<span>政府信息公开制度</span>
+										</a>
+									</dt>
+									<dt class="row2 zfxxgk-left-unselect" type="gknr">
+										<a href="wzXxfbZfgkml?type=gknr">
+											<i class="gknr-select-un">&nbsp;</i>
+											<span>法定主动公开内容</span>
+										</a>
+									</dt>
+									<dt class="row2 zfxxgk-left-unselect" type="gknb">
+										<a href="wzXxfbZfgkml?type=gknb">
+											<i class="gknb-select-un">&nbsp;</i>
+											<span>政府信息公开年报</span>
+										</a>
+									</dt>
+								</dl>
+							</div>
+						</div>
+						<!-- 依申请公开 -->
+						<div class="zw-righting">
+							<div class="shenqing-top">
+								<h3 style="font-weight: normal;"><p class="fjbt"><em></em>依申请公开</p></h3>
+								<ul>
+									<a title="申请处理" href="https://gaj.sh.gov.cn/shga/wzXxfbGj/getdetailBygjz?pa=96f29f67eb457e00b3c48b6bbe61730394dcf6f3049b9646f8c3e540524e4369"><li style="margin-left:0;"><img src="https://gaj.sh.gov.cn/shga/resource/images/d1.png">申请处理</li></a>
+									<a href="https://gaj.sh.gov.cn/shga/zfxxgkSqgkxx/sqbxz" title="申请表下载"><li><img src="https://gaj.sh.gov.cn/shga/resource/images/d2.png">申请表下载</li></a>
+									<a href="https://gaj.sh.gov.cn/shga/zfxxgkSqgkxx/index" title="在线申请"><li style="margin-left:0;width:99%;"><img src="https://gaj.sh.gov.cn/shga/resource/images/d3.png">在线申请</li></a>
+								</ul>
+								</div>
+								<div class="shenqing-down">
+									<form name="chaxun" target="_blank" action="http://xxgk.sh.gov.cn/zwgk_interface/pages/zwgkfront/applyInfoDetail.html?" method="get">
+									<h3 style="font-weight: normal;"><p class="fjbt"><em></em>处理状态查询</p></h3>
+									<p class="p_bianhao">申请单编号: <input type="text" title="申请单编号，可输入申请单编号进行查询" class="one" name="flownumber" id="st_apply_no" /></p>
+									<p class="p_bianhao" style="margin-top:18px; margin-left:0px;">申 请 单 位: <input title="申请单位，可输入申请单位进行查询" type="text" style="margin-left: 2px;" name="name" id="st_applicant_name" class="one"/></p>
+									<input type="button" value="搜  索" style="margin-top:15px;" class="zwbtns" onclick="ztcx()"/>
+									</form>
+								</div>
+							</div>
+							<!-- 依申请公开 -->
+						</div>
+						<!-- 政府信息公开 -->
+						<!-- 执法公开 -->
+						<div class="navs-con" style="background:url(https://gaj.sh.gov.cn/shga/resource/images/zf-bg.png) no-repeat;">
+							<div class="zhifa-left">
+								<p class="pku" style="height:25px;"><img src="https://gaj.sh.gov.cn/shga/resource/images/zfts.png">友情提示</p>
+								<p class="phn" style="line-height:20px;">如果您是上海市各级公安机关立案侦办的刑事案件的被害人，或者受理的行政案件的被侵害人，您可在收到公安机关发送的通知短信后， 凭短信通知的查询编号以及您的身份证号码，在本栏目查询您的案件在公安机关办理阶段的进展情况。<br>
+									注：1.因数据交互更新需要1-2个工作日，公安机关将在案件受理后的1-2个工作日内，向控告人、被害人发送通知短信；<br>
+									2．对于经行政受案审查及刑事立案审查不属于违法犯罪的，不属本系统查询范围，接报的公安机关将依法通过其他途径告知报案人<br>
+									3.涉及国家秘密、商业秘密、个人隐私及警务秘密等情况的案件，不提供公开查询；<br>
+									4.本系统试运行阶段可能存在个别数据和短信遗漏、滞后等情况，我们将持续优化改进，敬请谅解。<br>
+									5.<a target="_black" href="https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa=27cfd74b74a643431d6156e2523ce5313e38d59a87de2ab0ff5a473534eac852c5d1fb14d1503522c9fd6c3790e0e610">《领导干部干预司法活动、插手具体案件处理的记录、通报和责任追究规定》</a>、
+									<a target="_black" href="https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa=27cfd74b74a643431d6156e2523ce5313e38d59a87de2ab05eba7f8af5fd629f4c53ec108e5e2314b5f2fa918aa84f03">《司法机关内部人员过问案件的记录和责任追究规定》</a>、
+									<a target="_black" href="https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa=27cfd74b74a643431d6156e2523ce5313e38d59a87de2ab09d072fee417e3dea021349ae3a1703f6a5df93fc5877efa9">《关于进一步规范司法人员与当事人、律师、特殊关系人、中介组织接触交往行为的若干规定》</a><br>
+									6.因系统改造，部分单位接报案件的进展情况暂时无法提供公开查询，您可通过<b><a href="https://gaj.sh.gov.cn/shga/vXtglJgsz/index" target="_blank" style="text-decoration: underline;">接报案部门电话</a></b>等方式了解进展情况，如有不便，敬请谅解。
+									</p>
+								</div>							
+								<div class="zhifa-right">
+									<form action="https://gaj.sh.gov.cn/shga/ajcx/search" onsubmit="return toAjcx();" name="form" id="form" method="post" target="_block">
+									<h3 style="font-weight: normal;"><p class="pku"><img src="https://gaj.sh.gov.cn/shga/resource/images/cha.png">办案进展查询</p></h3>
+									<p class="kkh" style="padding-top: 12px;">
+										查 询 编 号: <input type="text" title="查询编号" class="inputyy" id="gkcxmm" name="gkcxmm"/>
+									</p>
+									<p class="kkh" style="">
+										身份证号码: <input type="text" title="身份证号码" class="inputyy" id="sfzhm" name="sfzhm"/>
+									</p>
+									<p class="kkh" style="">
+										验&nbsp;&nbsp;&nbsp;证&nbsp;&nbsp;&nbsp;码 : <input type="text" title="验证码" class="inputyy" id="verCode" name="verCode" style="width: 70px;"/>
+										<span class="spancc" style="display: inline-flex; width: 118px; position: relative;">
+											<a class="lanse" onclick="refreshValidateCode(document.getElementById('random'));" style="right:0px; position: absolute; font-size: 14px; top: 10px; cursor: pointer;">换一个</a>
+											<img src="https://gaj.sh.gov.cn/shga/baseCommon/getVerCode" id="random" onclick="refreshValidateCode(this);" title="点击更换验证码" style="top:8px; right:0px; width:70px;" class="look">
+										</span>
+									</p>
+									<input type="submit" value="查  询" style="font-size: 16px;" class="btns"/>
+									</form>	
+								</div>
+							</div>
+							<!-- 执法公开 -->
+							<!-- 一网通办 -->
+							<div class="navs-con" id="bmfw">
+								<STYLE>
+							.nav_con{WIDTH: 275PX; MARGIN-LEFT: 5PX; DISPLAY:INLINE-BLOCK;}
+							.nav_con OL LI{HEIGHT:37PX; LINE-HEIGHT:37PX; BORDER-BOTTOM: 1px dashed #b6b5b5;}
+							.nav_con OL LI span{padding: 8px 0px 0px; WIDTH:234PX; OVERFLOW: HIDDEN; WHITE-SPACE: NOWRAP; TEXT-OVERFLOW: ELLIPSIS;}
+							.wszw-nav-title{font-size: 16px;width: 151px;height: 39px;line-height: 40px;text-align: center;color: #fff;border: 1px solid #71c6e7; border-left:none; background: #087aee;}
+							.wszw-nav-title li{float: left; border-left: 2px solid #71c6e7;}
+							</STYLE>
+								<div class="wszw-left" STYLE="WIDTH:850PX; BORDER:NONE;">
+									<div class="wszw-nav-title" STYLE="WIDTH:850PX">
+										<ul>
+											<li STYLE="WIDTH:280PX" class="dang">人  口</li>
+											<li STYLE="WIDTH:280PX">交  警</li>
+											<li STYLE="WIDTH:280PX">出入境</li>
+										</ul>
+									</div>
+									<div class="nav_con">
+										<ol>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/086a73b2-d5f6-4dff-b33a-cc8f1bbab381" title="本市户口登记（申报出生登记）">
+													<span class="phf">本市户口登记（申报出生登记）</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/91753308-4a23-4290-81e2-542f96c94e0f" title="本市户口登记（市内户口迁移）">
+													<span class="phf">本市户口登记（市内户口迁移）</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/cc6b8704-abb0-46a8-a0cf-3d699501c8ab" title="本市户口登记（户口登记项目变更）本市户口登记（户口登记项目变更）">
+													<span class="phf">本市户口登记（户口登记项目变更）</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/87e86b45-c652-4873-b75c-c151a16f7f0d" title="外省市户口迁沪落户审批（子女投靠本市父母落户）">
+													<span class="phf">外省市户口迁沪落户审批（子女投靠本市父母落户）</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/3cbe3592-8865-4e7e-a5f3-7b213e3d4e20" title="外省市户口迁沪落户审批（老人投靠本市子女落户）">
+													<span class="phf">外省市户口迁沪落户审批（老人投靠本市子女落户）</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/ad8c1c41-b58f-4275-9b4e-7018f7fd5f9d" title="外省市户口迁沪落户审批（投靠本市配偶落户）">
+													<span class="phf">外省市户口迁沪落户审批（投靠本市配偶落户）</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/2ba216ae-9c55-4233-a6c5-2289eeeb8e04" title="本市及外省市户籍人员办理居民身份证">
+													<span class="phf">本市及外省市户籍人员办理居民身份证</span>
+												</a>
+											</li>
+										</ol>
+										<span style="float:right; padding: 11px 11px 0px 0px;">&nbsp;</span>
+									</div>
+									<div class="nav_con" >
+										<ol>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/fefab971-846f-4b31-8a76-029e0c8978fb" title="机动车注册登记">
+													<span class="phf">机动车注册登记</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/6e4d9248-dc98-40ce-a2af-d3f73d4f8c41" title="机动车转让登记">
+													<span class="phf">机动车转让登记</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/e9cfcf76-5c66-4b94-9a38-fbc025127246" title="核发机动车检验合格标志(申领免检标志)">
+													<span class="phf">核发机动车检验合格标志(申领免检标志)</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/ae8eba1d-3550-4eb8-9c0d-d08b5d669ef0" title="机动车临时通行牌证核发">
+													<span class="phf">机动车临时通行牌证核发</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/66599f88-77a6-453c-adc9-ce21aff15866" title="机动车驾驶证核发、审验">
+													<span class="phf">机动车驾驶证核发、审验</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/1dfa5078-f43e-4a2f-8a0a-c7196bdf122f" title="有效期满换领机动车驾驶证">
+													<span class="phf">有效期满换领机动车驾驶证</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/2617a812-c67b-480b-b3b9-4630f8dcc895" title="非机动车登记">
+													<span class="phf">非机动车登记</span>
+												</a>
+											</li>
+										</ol>
+										<span style="float:right; padding: 11px 11px 0px 0px;">&nbsp;</span>
+									</div>
+									<div class="nav_con">
+										<ol>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/2bbec36e-c80f-4fa9-a8a1-8165f7adcd87" title="普通护照首次申请">
+													<span class="phf">普通护照首次申请</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/cba05c84-ac34-4778-92d1-a6d580a218de" title="普通护照换发">
+													<span class="phf">普通护照换发</span>
+													<b class="timeing"></b>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/93e9622e-c11e-4fe2-bf5c-490b0e69bdc9" title="往来港澳通行证首次申请">
+													<span class="phf">往来港澳通行证首次申请</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/9cf3ac3a-c1c3-4488-a641-a4d562cf8368" title="往来港澳通行证换发">
+													<span class="phf">往来港澳通行证换发</span>
+													<b class="timeing"></b>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/bb3e6066-c973-4b21-9182-e750099c510b" title="往来港澳签注签发">
+													<span class="phf">往来港澳签注签发</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/55d662da-086d-4c4a-8501-c83c1bca6319" title="往来台湾通行证签发">
+													<span class="phf">往来台湾通行证签发</span>
+												</a>
+											</li>
+											<li>
+												<a target="_blank" href="https://zwdt.sh.gov.cn/govPortals/bsfw/item/a9693993-92e5-410d-861b-9b8d4ad389d3" title="往来台湾通行证申请换发补发">
+													<span class="phf">往来台湾通行证申请换发补发</span>
+												</a>
+											</li>
+										</ol>
+										<span style="float:right; padding: 11px 11px 0px 0px;"><a target="_blank" href="http://zwdt.sh.gov.cn/govPortals/organ_index.do?organ=SHGASH" title="更多,点击跳转到上海公安一网通办">更多+</a></span>
+									</div>
+								</div>	
+							</div>
+							<!-- 一网通办 -->
+							<!-- 警民互动 -->
+							<div class="navs-con">
+								<div class="zw-lefting jmhd" style="border:none; border-right:1px dashed #ddd;">
+									<h3 style="font-weight: normal;"><p class="gkxx hote"><img src="https://gaj.sh.gov.cn/shga/resource/images/hoting.png"><b class="bbn">热点问题 </b>
+										<a href="https://gaj.sh.gov.cn/shga/wzShgarxZxxx/toRdwtList">更 多 +</a>
+									</p></h3>
+									<ol>
+								            	<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzShgarxPjxx/getPjPage?pa=8d4dbfa6d83ec17a007b8fee39f8e6b273e11d5a2e6863b0" target="_blank">
+														<span class="phf">浦东新区祝桥镇千汇路580弄43号L层内。有一位绰...</span>
+														<b class="timeing">[10-29]</b>
+													</a>
+												</li>
+								            	<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzShgarxPjxx/getPjPage?pa=8d4dbfa6d83ec17ac24bcda0edf0035773e11d5a2e6863b0" target="_blank">
+														<span class="phf">我在同济大学就读时是同济大学集体户口，现在已经工作...</span>
+														<b class="timeing">[08-27]</b>
+													</a>
+												</li>
+								            	<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzShgarxPjxx/getPjPage?pa=c2c07c5a9f77bae5d9ecbc860c951a6173e11d5a2e6863b0" target="_blank">
+														<span class="phf">我在（甘肃碳交 App 资金账户：25000000...</span>
+														<b class="timeing">[05-22]</b>
+													</a>
+												</li>
+								            	<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzShgarxPjxx/getPjPage?pa=c2c07c5a9f77bae5a6b6b1d6674b8c8573e11d5a2e6863b0" target="_blank">
+														<span class="phf">申报户口事项申请表 哪里下载</span>
+														<b class="timeing">[11-20]</b>
+													</a>
+												</li>
+								            	<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzShgarxPjxx/getPjPage?pa=b71885b2f62403c6a3383fe721e2f11e73e11d5a2e6863b0" target="_blank">
+														<span class="phf">上海警民直通车无人机报备为什么没了</span>
+														<b class="timeing">[07-15]</b>
+													</a>
+												</li>
+								            	<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzShgarxPjxx/getPjPage?pa=b71885b2f62403c61b465e886676823a73e11d5a2e6863b0" target="_blank">
+														<span class="phf">我与前妻诉讼离婚，法院判决离婚并且房屋产权归我，如...</span>
+														<b class="timeing">[07-01]</b>
+													</a>
+												</li>
+								            	<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzShgarxPjxx/getPjPage?pa=b71885b2f62403c6fa057e6debcb677d73e11d5a2e6863b0" target="_blank">
+														<span class="phf">现在无人机申报飞行在哪里</span>
+														<b class="timeing">[07-01]</b>
+													</a>
+												</li>
+								            	<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzShgarxPjxx/getPjPage?pa=b71885b2f62403c68fcbca7342cc956073e11d5a2e6863b0" target="_blank">
+														<span class="phf">上海律师调查外地人居住信息从哪里查询？</span>
+														<b class="timeing">[06-29]</b>
+													</a>
+												</li>
+								            	<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzShgarxPjxx/getPjPage?pa=15215e9b5754a4610a0f4fc25d9dcc0a73e11d5a2e6863b0" target="_blank">
+														<span class="phf">请问我是游客到上海旅行，自己飞无人机的话需要报备么...</span>
+														<b class="timeing">[05-25]</b>
+													</a>
+												</li>
+									</ol>
+								</div>
+								<div class="hd-right">
+									<h3 style="font-weight: normal;"><p class="hote"><img src="https://gaj.sh.gov.cn/shga/resource/images/zx.png"><b class="bbn">咨询求助平台
+									</b>
+									<a href="https://gaj.sh.gov.cn/shga/toShgarx" aria-label="我要提问"><img aria-selected="false" src="https://gaj.sh.gov.cn/shga/resource/images/hd-img.png"></a>
+								</p></h3>
+								<div class="hddj">
+									<p class="dianji">请点击：<a href="https://gaj.sh.gov.cn/shga/toShgarx">我要提问</a> 我们将为您指引，您所提出的有效问题提交后，我们将给您提供一个编号，并将及时给您答复。</p>
+								</div>
+								<div class="tupian">
+									<ul>
+										<li><a title="信访大厅" href="https://gaj.sh.gov.cn/shga/wzXfdtJbxx/xfdtIndex"><img src="https://gaj.sh.gov.cn/shga/resource/images/xfjb.png"></a></li>
+										<li style="margin-right:0;"><a title="交通违法视频举报" href="http://sh.122.gov.cn/jb/">
+											<img src="https://gaj.sh.gov.cn/shga/resource/images/jtwf.png"></a></li>
+										</ul>
+									</div>
+
+								</div>
+							</div>
+							<!-- 警民互动 -->
+						</div>
+						<!-- 热点专题 -->
+						<div class="two-cons">
+							<div class="top"><img src="https://gaj.sh.gov.cn/shga/resource/images/zttop-bg.png"></div>
+							<div id="index_center" class="center">
+								<h4><img src="https://gaj.sh.gov.cn/shga/resource/images/zhuanti.png"></h4>
+							    <div class="tese_lanmu left">
+							        <div class="scroll_box">
+								        <a class="link_prev" href="javascript:;" hidefocus="true" id="link_prev"></a>
+								        <div id="index_tab_id">
+								            <ul class="index_tab_cen" id="List1" >
+								                <li>
+								                	<a href="https://www.12389.gov.cn">
+									                	<img alt="12389举报投诉中心" src="https://gaj.sh.gov.cn/shga/resource/images/12389.png" />
+								                	</a>
+								                </li>
+								                <li>
+								                	<a href="http://www.mps.gov.cn/n16/n983040/n4017840/n4611416/index.html">
+									                	<img alt="全面深化公安改革" src="https://gaj.sh.gov.cn/shga/resource/images/1.png" />
+								                	</a>
+								                </li>
+												<li>
+													<a href="http://www.sh12345.gov.cn/">
+														<img alt="12345上海市民服务热线" src="https://gaj.sh.gov.cn/shga/resource/images/6.png" />
+													</a>
+												</li>
+												<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzXfdtJbxx/xfdtIndex">
+														<img alt="网上信访大厅" src="https://gaj.sh.gov.cn/shga/resource/images/7.png" />
+													</a>
+												</li>
+												<li>
+													<a href="http://www.ciie.org/">
+														<img ale="中国国际进口博览会" src="https://gaj.sh.gov.cn/shga/resource/images/bolanhui.png" />
+													</a>
+												</li>
+												<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzXxfbGj/getList?pa=27cfd74b74a64343c2f86cb39197d0266149400c3d9f415a">
+														<img alt="中央环保督察专栏" src="https://gaj.sh.gov.cn/shga/resource/images/10.png" />
+													</a>
+												</li>
+												<li>
+													<a href="https://gaj.sh.gov.cn/shga/gweb/photoPage/photoPage.html" target="_blank">
+														<img alt="2021年实事项目——证件照片“一次采集、多次复用”便民服务库" src="https://gaj.sh.gov.cn/shga/resource/images/2021ssxm-2.png" />
+													</a>
+												</li>
+												<li>
+													<a href="https://www.shyzsd.com/ECar/index.html" target="_blank">
+														<img alt="2018市政府实事项目——车管到家" src="https://gaj.sh.gov.cn/shga/resource/images/cgdj.png" />
+													</a>
+												</li>
+												<li>
+													<a href="https://gaj.sh.gov.cn/shga/wzXtglDczt/toDiaochaPage">
+														<img ale="《道路交通安全法》执法检查调查问卷" src="https://gaj.sh.gov.cn/shga/resource/images/5.png" />
+													</a>
+												</li>
+												<li>
+													<a href="https://gaj.sh.gov.cn/shga//wzXxfbGj/detail?pa=b6144262b3e4c378abcc31cfb99f80a054ef8a1f0929f7b791a8dbc59c4b994f4b6a75098f073de71a13adaaef8e793f">
+														<img ale="关于公开征集涉企行政执法突出问题线索的公告" src="https://gaj.sh.gov.cn/shga/resource/images/gkzjxs.jpg" />
+													</a>
+												</li>
+								            </ul>
+								      	</div>
+								        <a class="link_next" href="javascript:;" hidefocus="true"  id="link_next"></a>
+							        </div>
+							   	</div>    
+							</div>
+							<div class="bottom"><img src="https://gaj.sh.gov.cn/shga/resource/images/ztbotm-bg.png"></div>
+
+						</div>
+						<!-- 热点专题 -->
+						<!-- 特色栏目 -->
+						<div class="three-cons">
+						    <div style="height: 40px;">
+						    	<div style="position: relative;">
+						    		<img style="display: inline-block;" src="https://gaj.sh.gov.cn/shga/resource/images/lanmu-1.png">
+						    		<font style="color: #116abf;font-size: 18px; position: absolute; left:40px; top:7px;">部门栏目</font>
+						    	</div>
+						    </div>
+							<ul>
+								<li><a href="https://gaj.sh.gov.cn/pdga">浦东分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/hpga">黄浦分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/xhga">徐汇分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/cnga">长宁分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/jaga">静安分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/ptga">普陀分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/hkga">虹口分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/ypga">杨浦分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/mhga">闵行分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/bsga">宝山分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/jdga">嘉定分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/sjga">松江分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/jsga">金山分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/qpga">青浦分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/fxga">奉贤分局</a></li>
+								<li><a href="https://gaj.sh.gov.cn/cmga">崇明分局</a></li>
+								<li><a href="/crj/">出入境电子政务平台</a></li>
+								<li style="margin-left:14px;"><a href="/ngo/xxfb/f">境外非政府组织管理办公室</a></li>
+							</ul>
+							<div class="right_tese" style="margin-top: -34px;">
+								<dl>
+									<dt><img src="https://gaj.sh.gov.cn/shga/resource/images/wx_jmztc_icon_SH.png"></dt>
+									<dd><a>微信警民直通车</a></dd>
+								</dl>
+								<dl>
+									<dt><img src="https://gaj.sh.gov.cn/shga/resource/images/ygjw_ewm.jpg"></dt>
+									<dd><a>阳光警务微信公众号</a></dd>
+								</dl>
+							</div>
+							
+							
+						</div>
+						<!-- 特色栏目 -->
+
+					</div>
+					<!--中间内容结束 -->
+				</div>
+			</div>
+			</div>
+			<div class="clear"></div>
+			
+			<div id="botm_link" class="footer" style="height:55px;">
+			 <div class="footer-ing">
+			 <div class="ft-top">
+			          <ul>
+			             <li>本市政府网站链接
+			                <span class="spantt"><img src="https://gaj.sh.gov.cn/shga/resource/img/xiaojiao.png"></span>
+			                <div class="li-dibu">
+			                    		<a href="http://www.shanghai.gov.cn/" target="_blank">市政府</a>
+			                    		<a href="http://fgw.sh.gov.cn/" target="_blank">市发展改革委</a>
+			                    		<a href="http://www.sheitc.sh.gov.cn" target="_blank">市经济信息化委</a>
+			                    		<a href="http://sww.sh.gov.cn" target="_blank">市商务委</a>
+			                    		<a href="http://edu.sh.gov.cn/" target="_blank">市教委</a>
+			                    		<a href="http://stcsm.sh.gov.cn/" target="_blank">市科委</a>
+			                    		<a href="http://mzzj.sh.gov.cn/" target="_blank">市民族宗教局</a>
+			                    		<a href="http://mzj.sh.gov.cn" target="_blank">市民政局</a>
+			                    		<a href="http://sfj.sh.gov.cn" target="_blank">市司法局</a>
+			                    		<a href="http://www.czj.sh.gov.cn/" target="_blank">市财政局</a>
+			                    		<a href="http://rsj.sh.gov.cn/" target="_blank">市人力资源社会保障局</a>
+			                    		<a href="http://ghzyj.sh.gov.cn/" target="_blank">市规划资源局</a>
+			                    		<a href="http://sthj.sh.gov.cn/" target="_blank">市生态环境局</a>
+			                    		<a href="http://zjw.sh.gov.cn/" target="_blank">市住房城乡建设管理委</a>
+			                    		<a href="http://jtw.sh.gov.cn" target="_blank">市交通委</a>
+			                    		<a href="http://nyncw.sh.gov.cn/" target="_blank">市农业农村委</a>
+			                    		<a href="http://swj.sh.gov.cn/" target="_blank">市水务局</a>
+			                    		<a href="http://whlyj.sh.gov.cn//" target="_blank">市文化旅游局</a>
+			                    		<a href="http://wsjkw.sh.gov.cn/" target="_blank">市卫生健康委</a>
+			                    		<a href="http://tyjr.sh.gov.cn/" target="_blank">市退役军人局</a>
+			                    		<a href="http://yjglj.sh.gov.cn/" target="_blank">市应急局</a>
+			                    		<a href="http://sjj.sh.gov.cn/" target="_blank">市审计局</a>
+			                    		<a href="http://scjgj.sh.gov.cn/" target="_blank">市市场监管局</a>
+			                    		<a href="http://jrj.sh.gov.cn/" target="_blank">市地方金融监管局</a>
+			                    		<a href="http://wsb.sh.gov.cn/" target="_blank">市政府外办</a>
+			                    		<a href="https://www.gzw.sh.gov.cn/" target="_blank">市国资委</a>
+			                    		<a href="http://tyj.sh.gov.cn/" target="_blank">市体育局</a>
+			                    		<a href="http://tjj.sh.gov.cn/" target="_blank">市统计局</a>
+			                    		<a href="http://ybj.sh.gov.cn/" target="_blank">市医保局</a>
+			                    		<a href="http://lhsr.sh.gov.cn/" target="_blank">市绿化市容局</a>
+			                    		<a href="http://www.jgj.sh.gov.cn/" target="_blank">市机管局</a>
+			                    		<a href="http://mfb.sh.gov.cn/" target="_blank">市民防办</a>
+			                    		<a href="http://hzjl.sh.gov.cn/" target="_blank">市政府合作交流办</a>
+			                    		<a href="http://css.sh.gov.cn/" target="_blank">市政府参事室</a>
+			                    		<a href="http://lswzj.sh.gov.cn/" target="_blank">市粮食物资储备局</a>
+			                    		<a href="http://jyj.sh.gov.cn/" target="_blank">市监狱管理局</a>
+			                    		<a href="http://cgzf.sh.gov.cn/" target="_blank">市城管执法局</a>
+			                    		<a href="http://fgj.sh.gov.cn/" target="_blank">市房屋管理局</a>
+			                    		<a href="http://yjj.sh.gov.cn/" target="_blank">市药品监管局</a>
+			                    		<a href="http://sipa.sh.gov.cn/" target="_blank">市知识产权局</a>
+			                    		<a href="https://dlysj.sh.gov.cn/" target="_blank">市道路运输局</a>
+			                </div>
+			            </li>
+			            <li>全国公安网站链接
+			                <span class="spantt"><img src="https://gaj.sh.gov.cn/shga/resource/img/xiaojiao.png"></span>
+			                <div class="li-dibu" style="left:-415px;">                                 
+			                    		<a href="http://www.mps.gov.cn/" target="_blank">公安部</a>
+			                    		<a href="http://gaj.beijing.gov.cn/" target="_blank">北京市公安局</a>
+			                    		<a href="http://ga.tj.gov.cn" target="_blank">天津市公安局</a>
+			                    		<a href="http://gat.hebei.gov.cn/" target="_blank">河北省公安厅</a>
+			                    		<a href="http://gat.shanxi.gov.cn" target="_blank">山西省公安厅</a>
+			                    		<a href="http://gat.nmg.gov.cn" target="_blank">内蒙古自治区公安厅</a>
+			                    		<a href="http://gat.ln.gov.cn" target="_blank">辽宁省公安厅</a>
+			                    		<a href="http://gat.jl.gov.cn" target="_blank">吉林省公安厅</a>
+			                    		<a href="https://gat.hlj.gov.cn" target="_blank">黑龙江省公安厅</a>
+			                    		<a href="http://gat.jiangsu.gov.cn/" target="_blank">江苏省公安厅</a>
+			                    		<a href="http://gat.zj.gov.cn/" target="_blank">浙江省公安厅</a>
+			                    		<a href="http://gat.ah.gov.cn/" target="_blank">安徽省公安厅</a>
+			                    		<a href="http://gat.fujian.gov.cn" target="_blank">福建省公安厅</a>
+			                    		<a href="http://gat.jiangxi.gov.cn/" target="_blank">江西省公安厅</a>
+			                    		<a href="http://gat.shandong.gov.cn/" target="_blank">山东省公安厅</a>
+			                    		<a href="https://hnga.henan.gov.cn/" target="_blank">河南省公安厅</a>
+			                    		<a href="http://gat.hubei.gov.cn/" target="_blank">湖北省公安厅</a>
+			                    		<a href="http://gat.hunan.gov.cn" target="_blank">湖南省公安厅</a>
+			                    		<a href="http://gdga.gd.gov.cn" target="_blank">广东省公安厅</a>
+			                    		<a href="http://gat.gxzf.gov.cn/" target="_blank">广西壮族自治区公安厅</a>
+			                    		<a href="http://ga.hainan.gov.cn" target="_blank">海南省公安厅</a>
+			                    		<a href="http://gaj.cq.gov.cn/" target="_blank">重庆市公安局</a>
+			                    		<a href="http://gat.sc.gov.cn/" target="_blank">四川省公安厅</a>
+			                    		<a href="http://gat.guizhou.gov.cn/" target="_blank">贵州省公安厅</a>
+			                    		<a href="http://gonganting.yn.gov.cn" target="_blank">云南省公安厅</a>
+			                    		<a href="http://gat.shaanxi.gov.cn" target="_blank">陕西省公安厅</a>
+			                    		<a href="http://gat.gansu.gov.cn/" target="_blank">甘肃省公安厅</a>
+			                    		<a href="http://gat.qinghai.gov.cn" target="_blank">青海省公安厅</a>
+			                    		<a href="http://gat.nx.gov.cn/" target="_blank">宁夏回族自治区公安厅</a>
+			                    		<a href="https://gat.xinjiang.gov.cn/" target="_blank">新疆维吾尔自治区公安厅</a>
+			                    		<a href="http://gat.xizang.gov.cn/" target="_blank">西藏自治区公安厅</a>
+			                </div>
+			            </li>
+			            <li style="margin-right:0;">其他网站链接
+			                <span class="spantt"><img src="https://gaj.sh.gov.cn/shga/resource/img/xiaojiao.png"></span>
+			                <div class="li-dibu" style="left:-654px;">                                 
+			                    		<a href="https://gaj.sh.gov.cn/jqztc/login/shga_login.htm" target="_blank">市局特约监督员直通车</a>
+			                    		<a href="http://www.cpd.com.cn" target="_blank">中国警察网</a>
+			                    		<a href="http://www.sh.jcy.gov.cn" target="_blank">上海市人民检察院</a>
+			                    		<a href="http://www.hshfy.sh.cn" target="_blank">上海市高级人民法院</a>
+			                    		<a href="http://www.wenming.cn" target="_blank">中国文明网</a>
+			                    		<a href="http://www.962222.net" target="_blank">上海市民信息服务网</a>
+			                    		<a href="http://www.sh-anfang.org" target="_blank">上海安防网</a>
+			                </div>
+			            </li>
+			        </ul>
+			    </div>
+			 </div>
+			</div>
+			<div class="footer">
+			 <div class="footer-ing">
+				<!-- 底部开始 -->
+<div id="footer">
+    <div class="ft-left">
+	    	      <script id="_jiucuo_" sitecode="3100000015" src="https://zfwzgl.www.gov.cn/exposure/jiucuo.js"></script>
+    </div>
+    
+	<div class="ft-center">
+      <p class="ppu"><img src="https://gaj.sh.gov.cn/shga/resource/img/logo-small.png"> 上海市公安局</p>
+      <p class="ppy">地址：武宁南路128号 邮政编码：200042 <span id="dhSpan" style="display: inline-block">电话：62310110</span> 报警电话：110(24小时) </p>
+         <p class="ppy">推荐使用Chrome浏览器、IE8（及以上）   政府网站标识码：3100000015</p>
+         <p><a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=31010602002285" style="color:#FFF;">沪公网安备 31010602002285号</a> | <img src="https://gaj.sh.gov.cn/shga/resource/img/number_logo_mini.png" style="border:0px;height:19px;vertical-align: text-top;display: initial;"/><a target="_blank" href="https://beian.miit.gov.cn" style="color:#FFF;"> 沪ICP备 2021016245号-2</a></p> 
+         <p class="ppy"><a target="_blank" href="https://gaj.sh.gov.cn/shga/wzQtWzjc/toAdd">网站纠错</a> | <a target="_blank" href="https://gaj.sh.gov.cn/shga/webmap">网站地图</a></p>                                                           
+     </div>
+     <div class="ft-right">
+         <ul>
+            <li>
+	        	<a href="http://bszs.conac.cn/sitename?method=show&id=3B59D37AF32E3F94E053012819AC5828"><img src="https://gaj.sh.gov.cn/shga/resource/img/red.png"/></a>
+            </li>
+        </ul>
+    </div>
+<div>
+		<script type="text/javascript" src="https://jhelper.shanghai.gov.cn/publicJS/3100000015.js"></script>
+			</div>
+			</div>
+<script>
+
+	function toBm() {
+		$(".one-cons>div").eq(4).show().siblings().hide();
+	}
+
+		// 首页5个栏目自动切换
+    	var sTimerIndex, li_index=0;
+    	setInverterTimer_index();
+        function setInverterTimer_index() {
+        	var li_len = $("#mainNav").find("li").length;
+            sTimerIndex = setInterval(function() {
+                //li_index ++;
+                //$("#mainNav").find("li").eq(li_index%li_len).mouseover();
+            }, 10000);
+        }
+        // 操作页面时自动停止切换计时
+        $("body").bind("click",function(){
+        	clearInterval(sTimerIndex);
+        });
+
+        // 切换面板的核心函数
+        function switchPanel($li) {
+        	clearInterval(sTimerIndex);
+        	var index = $li.index();
+
+        	// 避免重复操作
+        	if ($li.hasClass("currents")) {
+        		return;
+        	}
+
+        	// 切换选中样式
+        	$("#mainNav li").removeClass("currents").attr("aria-selected", "false");
+        	$li.addClass("currents").attr("aria-selected", "true");
+
+        	// 显示对应的面板
+        	$(".one-cons .navs-con").hide().eq(index).show();
+        	
+        	// 播报当前聚焦的菜单
+        	var menuTitle = $li.find("h2").text().trim();
+        	announceToScreenReader(menuTitle + "已展开");
+        }
+
+        // 无障碍模式支持：聚焦时展示对应面板
+        $("#mainNav li").on("focus", function() {
+        	switchPanel($(this));
+        });
+
+        // 点击事件：中肯方案 - 面板未展开时切换，已展开时跳转
+        $("#mainNav li").on("click", function(e) {
+        	e.stopPropagation();
+        	var $this = $(this);
+        	
+        	// 检查当前菜单是否已经是选中状态（面板已展开）
+        	if ($this.hasClass("currents")) {
+        		// 面板已展开，执行跳转
+        		var href = $this.find("a").attr("href");
+        		var target = $this.find("a").attr("target");
+        		if (href) {
+        			if (target === "_blank") {
+        				window.open(href);
+        			} else {
+        				window.location.href = href;
+        			}
+        		}
+        	} else {
+        		// 面板未展开，先切换面板
+        		e.preventDefault();
+        		switchPanel($this);
+        	}
+        });
+
+        // 根据系统类型动态设置aria-label
+        var isAndroid = /Android/i.test(navigator.userAgent);
+        var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
+        $("#mainNav li").each(function() {
+        	var $li = $(this);
+			var $h2 = $li.find("h2");
+        	var menuName = $h2.text().trim();
+        	var ariaLabel = menuName;
+        	
+        	if (isIOS) {
+				// iOS系统：单指下滑切换视窗
+				ariaLabel = menuName + "，单指操作切换视窗，双击进入详情页";
+        	} else if (isAndroid) {
+				// 安卓系统：双指滑动切换视窗
+				ariaLabel = menuName + "，双指滑动切换视窗，双击进入详情页";
+        	}
+        	$h2.attr("aria-label", ariaLabel);
+        });
+
+        // 移动设备触摸支持
+        if (isAndroid || isIOS) {
+        	var lastTouchedLi = null;
+        	
+        	// 定义检测触摸位置的函数
+        	function checkTouchOnNav(touchX, touchY) {
+        		$('#mainNav li').each(function() {
+        			var rect = this.getBoundingClientRect();
+        			if (touchX >= rect.left && touchX <= rect.right && 
+        			    touchY >= rect.top && touchY <= rect.bottom) {
+        				var $li = $(this);
+        				if (lastTouchedLi !== this) {
+        					lastTouchedLi = this;
+        					switchPanel($li);
+        				}
+        				return false; // 跳出each循环
+        			}
+        		});
+        	}
+        	
+        	$("#mainNav li").on("touchend", function(e) {
+        		var $this = $(this);
+        		if (e.originalEvent && e.originalEvent.changedTouches && e.originalEvent.changedTouches.length === 1) {
+        			switchPanel($this);
+        		}
+        	});
+        }
+
+        // 无障碍模式支持：键盘Enter或空格键触发跳转
+        // $("#mainNav li").on("keydown", function(e) {
+        // 	if (e.keyCode === 13 || e.keyCode === 32) {
+        // 		e.preventDefault();
+        // 		var href = $(this).find("a").attr("href");
+        // 		var target = $(this).find("a").attr("target");
+        // 		if (target === "_blank") {
+        // 			window.open(href);
+        // 		} else {
+        // 			window.location.href = href;
+        // 		}
+        // 	}
+        // });
+
+        // 屏幕阅读器播报函数
+        function announceToScreenReader(message) {
+        	// 避免重复播报相同的文本
+        	var prevAnnouncement = document.querySelector('.sr-only-announcement');
+        	if (prevAnnouncement && prevAnnouncement.textContent === message) {
+        		return; // 如果相同的文本已经在播报，直接返回
+        	}
+
+         	var announcement = document.createElement('div');
+         	announcement.setAttribute('aria-live', 'polite');
+         	announcement.setAttribute('aria-atomic', 'true');
+         	announcement.className = 'sr-only-announcement';
+         	announcement.textContent = message;
+         	announcement.style.cssText = 'position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;';
+
+         	if (prevAnnouncement) {
+         		prevAnnouncement.remove();
+         	}
+
+         	document.body.appendChild(announcement);
+
+         	setTimeout(function() {
+         		if (announcement.parentNode) {
+         			announcement.parentNode.removeChild(announcement);
+         		}
+         	}, 1000);
+        }
+</script>
+
+<script type="text/javascript">
+$(function(){
+    $('#botm_link .ft-top ul li').bind("mouseover",function(){
+    	$(this).find(".li-dibu").css("display","block");
+    });
+    $('#botm_link .ft-top ul li').bind("mouseout",function(){
+    	$(this).find(".li-dibu").css("display","none");
+    });
+    // 默认选中其中某个隐藏面板
+	var showpanel = GetQueryString("showpanel");
+	if(showpanel){
+		$("#"+showpanel+"_title").mouseover();
+	}
+});
+</script>
+
+<script type="text/javascript">
+	var jQuery_1_8_2 = $;
+	var oList = document.getElementById("List1");
+	var aLi = oList.getElementsByTagName('li');
+	oList.innerHTML+=oList.innerHTML;
+	oList.style.width=aLi[0].offsetWidth*aLi.length+aLi.length*40+"px";
+    jQuery_1_8_2(function($) {
+        $('div.pro_box').hover(function() {
+            $(this).toggleClass('pro_box_hover')
+        });
+	//c的值为每次滚动数
+        var slideContainer = $('#List1'), c = 1, s_w = 176 * c, counts_l = 0, counts_r = 0, maxCounts = slideContainer.find('li').size() - 0, gameOver = true, slideCounts = 7, sTimer;
+        $('#link_prev').on('click', function() {
+            clearInterval(sTimer);
+            if (gameOver) {
+                gameOver = false;
+                counts_l++;
+                slideContainer.animate({
+                    left: '+=' + s_w
+                }, 500, function() {
+                    gameOver = true;
+                    slideContainer.animate({
+                        left: '-=' + s_w
+                    }, 0);
+                    var html = '';
+                    slideContainer.find('li:gt(' + (maxCounts - c - 1) + ')').each(function() {
+                        html += '<li>' + $(this).html() + '</li>';
+                    });
+                    slideContainer.find('li:gt(' + (maxCounts - c - 1) + ')').remove();
+                    slideContainer.html(html + slideContainer.html());
+                });
+            }
+        });
+        $('#link_next').on('click', function() {
+            clearInterval(sTimer);
+            link_next_event();
+        });
+        function link_next_event() {
+            if (gameOver) {
+                gameOver = false;
+                counts_r++;
+                slideContainer.animate({
+                    left: '-=' + s_w
+                }, 500, function() {
+                    gameOver = true;
+                    slideContainer.animate({
+                        left: '+=' + s_w
+                    }, 0);
+                    slideContainer.find('li:lt(' + c + ')').clone().appendTo(slideContainer);
+                    slideContainer.find('li:lt(' + c + ')').remove();
+                });
+            }
+        }
+        lastCLiHtml();
+        slideContainer.find('li:gt(' + (maxCounts - 1) + ')').remove();
+        function lastCLiHtml() {
+            var html = '';
+            slideContainer.find('li:gt(' + (maxCounts - c - 1) + ')').each(function() {
+                html += '<li>' + $(this).html() + '</li>';
+            });
+            slideContainer.html(html + slideContainer.html()).css({
+                'margin-left': -s_w + 'px'
+            });
+        }
+        var l_hover = false, m_hover = false, r_hover = false;
+        $('#myscrollbox').on({
+            'mouseover': function() {
+                m_hover = true;
+                clearInterval(sTimer);
+            },
+            'mouseout': function() {
+                m_hover = false;
+                isStartGo();
+            }
+        });
+        $('#link_next, #link_prev').on('mouseout', function() {
+            l_hover = false;
+            r_hover = false;
+            isStartGo();
+        })
+        $('#link_next, #link_prev').on('mouseover', function() {
+            l_hover = true;
+            r_hover = true;
+            clearInterval(sTimer);
+        })
+        setInverterTimer();
+        function setInverterTimer() {
+            clearInterval(sTimer);
+            sTimer = setInterval(function() {
+                link_next_event();
+            }, 3000);
+        }
+        function isStartGo() {
+            var st = setTimeout(function() {
+                if (!l_hover && !m_hover && !r_hover) {
+                    setInverterTimer();
+                }
+            }, 1000);
+        }
+    });
+</script>
+
+				<!-- 底部结束 -->
+			<script type="text/javascript">
+				$(function(){
+		    		$("#login").load("https://gaj.sh.gov.cn/shga/topLogin?type=new");
+		    	});
+				//在新的页面打开连接
+			  	function toXx(url){
+			  		window.open(url, "_blank" );
+			  	}
+			  	
+			  	function toXxs(pa){
+					window.open("https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa="+pa,"_blank" );
+				}
+				
+				function ztcx() {
+				   var st_apply_no=chaxun.st_apply_no.value;
+				   var st_applicant_name=chaxun.st_applicant_name.value;
+				   if(!st_apply_no)
+				   {
+					   alert("请填写申请单号！");
+					   return false;
+				   }
+				   if(!st_applicant_name)
+				   {
+					   alert("请填写申请单位！");
+					   return false;
+				   }
+				  chaxun.submit();
+				}
+				
+				function isEmpty(id,mgs){
+					var flag = $.trim($("#"+id).val()) != "";
+					if(!flag){ 
+						alert(mgs);
+						$("#"+id).focus();
+					}
+					return flag;
+				}
+				
+				/**
+				 * 打开总队选择窗口
+				 */
+				function openZd(){
+					jBoxOpenGetOnly_index("wzShgarxBmxx/toSelectDeptPage_index","dwlx:1","选择市局业务总队",300,200);
+				}
+				
+				/**
+				 * 打开分局受理中心选择窗口
+				 */
+				function openFj(){
+					jBoxOpenGetOnly_index("wzShgarxBmxx/toSelectDeptPage_index","dwlx:2","选择分局",300,200);
+				}
+				
+				/**
+				 * 打开派出所选择窗口
+				 */
+				function openPcs(){
+					jBoxOpenGetOnly_index("wzShgarxBmxx/toSelectDeptPage_index","dwlx:3","选择派出所",500,330);
+				}
+				
+				
+			/**
+			 * 获取通过url传递的参数
+			 */
+			function GetQueryString(name) {
+			   var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)","i");
+			   var r = window.location.search.substr(1).match(reg);
+			   if (r && r.length >= 3 && r[2] && r[2].indexOf("\"")< 0 && r[2].indexOf("'")< 0) return unescape(r[2]); return null;
+			}
+			</script>
+			
+			
+			<script type="text/javascript">
+					var l_htmlStr = "<div>"
+							+"<div style='margin-bottom:6px;'><a href='https://gaj.sh.gov.cn/shga/vXtglJgsz/index' target='_blank'><img src='https://gaj.sh.gov.cn/shga/resource/images/dwckcx.png' width='200' title='对外窗口查询'/></a></div>"
+							+"<div style='margin-bottom:0px;'><a href='https://www.gov.cn/zhengce/zczhjd/' target='_blank'><img src='https://gaj.sh.gov.cn/shga/resource/images/jcss.png' width='200' title='重要政策举措及实施效果'/></a></div>"
+						+"</div>";
+					
+					var r_htmlStr = "<div>"
+							+"<div style='margin-bottom:6px;'><a href='https://gaj.sh.gov.cn/shga/wzXxfbGj/detail?pa=110ef360e4374a41cdb927ac3edb9b91e6a0ebed06de3818f670114976f36740' target='_blank'><img src='https://gaj.sh.gov.cn/shga/resource/images/2024gznb.png' width='200' title='2024年“上海公安”政府网站工作年报'/></a></div>"
+						+"</div>";
+					var b_htmlStr = "<div>"
+							+"<a href='https://zwdtuser.sh.gov.cn/uc/naturalUser/jumpSendTo.do?redirect_uri=https%3a%2f%2fzwdt.sh.gov.cn%2fsmzy%2fshspace%2floginsso%2fin%3fwdkf%3dtrue'><img src='https://gaj.sh.gov.cn/shga/resource/images/side6.png' width='80'/></a>"
+						+"</div>";
+					// 不要写在加载项里，会清空原有网页内容
+		    		showNoticeDiv('left_div',170,null,l_htmlStr,0,null,250,null);
+		    		showNoticeDiv('right_div',170,null,r_htmlStr,null,0,250,null);
+		    		showNoticeDiv('baozi_div',80,null,b_htmlStr,null,0,818,null);
+					$("#baozi_div").css("border","none");
+					$($("#baozi_div b").parent()).css("display","none");
+			</script>
+			
+	</body>
+
+</html>

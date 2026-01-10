@@ -6,7 +6,7 @@ pub fn extract_input_tokens(input: &str) -> FxHashSet<String> {
     let mut tokens = FxHashSet::default();
     let mut current = String::with_capacity(16);
 
-    // 修复1：按char遍历（保留完整字符串，包括中文）
+    // 按char遍历（保留完整字符串，包括中文）
     for c in input.chars() {
         if tokens.len() >= MAX_TOKEN_LIMIT { break; }
         
@@ -18,7 +18,7 @@ pub fn extract_input_tokens(input: &str) -> FxHashSet<String> {
             // 无效字符：截断当前Token
             _ => {
                 if !current.is_empty() {
-                    // 修复2：交给共用的extract_atomic_tokens处理
+                    // 交给共用的extract_atomic_tokens处理
                     let atomic = extract_atomic_tokens(&current);
                     tokens.extend(atomic);
                     current.clear();

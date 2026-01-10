@@ -8,6 +8,7 @@ use crate::{
         CompiledPattern, ExecutablePattern, MatchGate, RuleLibraryIndex, ScopedIndexedRule,
         StructuralPrereq,
     },
+    min_evidence::MinEvidenceMeta,
     pruner::{min_evidence, tokenizer},
     scope_pruner::PruneScope,
     utils::safe_lower::safe_lowercase,
@@ -15,6 +16,9 @@ use crate::{
 };
 use once_cell::sync::OnceCell;
 use rustc_hash::{FxHashMap, FxHashSet};
+
+// HTML关键字黑名单（全局懒加载）
+static HTML_TOKEN_BLACKLIST: OnceCell<FxHashSet<&'static str>> = OnceCell::new();
 
 // 内部构建器：临时存储技术规则的分类数据
 #[derive(Debug, Clone, Default)]
@@ -190,11 +194,29 @@ impl RuleIndexer {
         // 4. 构建证据索引
         let (evidence_index, no_evidence_index) = Self::build_evidence_indexes(&compiled_tech);
 
+        // 5. 构建 known_tokens 和 known_tokens_by_scope
+        let mut known_tokens = FxHashSet::default();
+        let mut known_tokens_by_scope = FxHashMap::default();
+        for (token, scope_to_techs) in &evidence_index {
+            // 5.1 填充全局known_tokens（所有证据token的全集）
+            known_tokens.insert(token.clone());
+
+            // 5.2 填充按scope的known_tokens_by_scope（按scope分组）
+            for (scope, _techs) in scope_to_techs {
+                known_tokens_by_scope
+                    .entry(*scope)
+                    .or_insert_with(FxHashSet::default)
+                    .insert(token.clone());
+            }
+        }
+
         Ok(CompiledRuleLibrary {
             tech_patterns: compiled_tech,
             category_map,
             tech_meta: compiled_meta,
             evidence_index,
+            known_tokens,
+            known_tokens_by_scope,
             no_evidence_index,
         })
     }
@@ -329,7 +351,7 @@ impl RuleIndexer {
         let Some(pats) = patterns else { return };
 
         for pat in pats {
-            // 适配实际的 MatchGate 变体：Open/Anchor/RequireAll/RequireAny
+            // 适配实际的 MatchGate 变体：Open/RequireAll/RequireAnyLiteral
             let evidence_set = match &pat.exec.match_gate {
                 MatchGate::Open => FxHashSet::default(), // 无准入条件 → 空集合
                 MatchGate::RequireAll(set) => set.clone(), // 直接复用已有集合
@@ -494,11 +516,16 @@ impl RuleIndexer {
             let matcher_spec = matcher.to_spec();
 
             // 提取剪枝策略和证据
-            let min_evidence = Self::extract_min_evidence_tokens(&matcher);
+            //let min_evidence = Self::extract_min_evidence_tokens(&matcher);
+            // 根据作用域选择提取方法
+            let min_evidence_meta = match scope {
+                PruneScope::Html => Self::extract_min_evidence_with_meta_and_scope(&matcher, scope),
+                _ => Self::extract_min_evidence_with_meta(&matcher),
+            };
             let structural_prereq = StructuralPrereq::from_matcher(&matcher);
 
             // 构建匹配门控
-            let match_gate = fold_to_match_gate(min_evidence, structural_prereq);
+            let match_gate = fold_to_match_gate(min_evidence_meta, structural_prereq);
 
             // 添加编译后的模式
             pats.push(CompiledPattern {
@@ -538,12 +565,11 @@ impl RuleIndexer {
                 let matcher_spec = matcher.to_spec();
 
                 // 提取剪枝策略和证据
-                let min_evidence = Self::extract_min_evidence_tokens(&matcher);
+                let min_evidence_meta = Self::extract_min_evidence_with_meta(&matcher);
                 let structural_prereq = StructuralPrereq::from_matcher(&matcher);
 
                 // 构建匹配门控
-                let match_gate =
-                    fold_to_match_gate(min_evidence, structural_prereq);
+                let match_gate = fold_to_match_gate(min_evidence_meta, structural_prereq);
 
                 // 添加编译后的模式
                 rule_pats.push(CompiledPattern {
@@ -569,24 +595,82 @@ impl RuleIndexer {
         (!pats.is_empty()).then_some(pats)
     }
 
-    /// 提取匹配器的最小证据令牌
-    /// 参数：matcher - 运行时匹配器
-    /// 返回：最小证据令牌集合
+    /// 提取最小证据元信息
     #[inline(always)]
-    fn extract_min_evidence_tokens(matcher: &Matcher) -> FxHashSet<String> {
+    fn extract_min_evidence_with_meta(matcher: &Matcher) -> MinEvidenceMeta {
         match matcher {
             Matcher::Contains(s) => {
                 let literal = safe_lowercase(s.as_str());
-                if literal.len() > 2 {
+                let source_len = literal.len(); // 记录原始串长度
+                let tokens = if literal.len() > 2 {
                     tokenizer::extract_atomic_tokens(&literal)
                 } else {
                     FxHashSet::default()
+                };
+                MinEvidenceMeta {
+                    tokens,
+                    source_len,
+                    source_literal: literal,
                 }
             }
             Matcher::LazyRegex { pattern, .. } => {
-                min_evidence::extract_min_evidence_tokens(pattern.as_str())
+                let min_evidence = min_evidence::extract_min_evidence_meta(pattern.as_str());
+                MinEvidenceMeta {
+                    tokens: min_evidence.tokens,
+                    source_len: min_evidence.source_len,
+                    source_literal: min_evidence.source_literal,
+                }
             }
-            Matcher::Exists => FxHashSet::default(),
+            Matcher::Exists => MinEvidenceMeta {
+                tokens: FxHashSet::default(),
+                source_len: 0,
+                source_literal: String::new(), // Exists无字面量，赋值空字符串
+            },
         }
+    }
+
+    // 带作用域的最小证据提取方法
+    #[inline(always)]
+    fn extract_min_evidence_with_meta_and_scope(
+        matcher: &Matcher,
+        scope: PruneScope,
+    ) -> MinEvidenceMeta {
+        let mut meta = Self::extract_min_evidence_with_meta(matcher);
+
+        // 仅对 HTML 作用域过滤黑名单 token
+        if scope == PruneScope::Html {
+            let blacklist = Self::get_html_blacklist();
+            meta.tokens
+                .retain(|token| !blacklist.contains(token.as_str()));
+        }
+
+        meta
+    }
+    /// 初始化HTML黑名单词汇
+    fn init_html_blacklist() -> FxHashSet<&'static str> {
+        let mut set = FxHashSet::default();
+        set.extend([
+            "html",
+            "rel",
+            "stylesheet",
+            "link",
+            "com",
+            "app",
+            "page",
+            "body",
+            "data",
+            "href",
+            "css",
+            "content",
+            "class",
+            "div",
+            "block",
+        ]);
+        set
+    }
+
+    /// 获取黑名单
+    fn get_html_blacklist() -> &'static FxHashSet<&'static str> {
+        HTML_TOKEN_BLACKLIST.get_or_init(Self::init_html_blacklist)
     }
 }
