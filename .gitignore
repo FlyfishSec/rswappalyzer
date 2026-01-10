@@ -1,6 +1,6 @@
 /target
 /Cargo.lock
-rswappalyzer/examples/test_data/test_html.html
+*.html
 **/target
 *.del
 *.bak

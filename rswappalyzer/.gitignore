@@ -1,5 +1,5 @@
 /target
-examples/test_data/test_html.html
+*.html
 *.del
 *.bak
 *.old
