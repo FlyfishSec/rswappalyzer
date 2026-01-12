@@ -1,8 +1,8 @@
 # rswappalyzer 🚀
 
-A high-performance Wappalyzer rule detection engine.
+A high-performance Wappalyzer rule detection Library.
 
-极速 ***wappalyzer*** 规则检测引擎
+极速 ***wappalyzer*** 规则检测库
 
 ---
 
