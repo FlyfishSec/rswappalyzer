@@ -89,7 +89,7 @@ impl TechDetector {
 
         // 借用 Arc 指向的 CompiledRuleLibrary 创建 ac_cache（无移动/克隆成本）
         let ac_cache = AcAutomatonCache::new(&compiled_lib).map_err(CoreError::from)?;
-
+        
         // 构建运行时规则库（仅移动 Arc 指针，无数据拷贝）
         let runtime_lib = RuleLibraryRuntime {
             compiled_lib, // Arc 克隆后移动，零成本
@@ -249,7 +249,8 @@ impl TechDetector {
             None => (Cow::Borrowed(""), String::new(), Vec::with_capacity(0)),
         };
 
-        // 初始化HTML相关变量（修复作用域问题）
+        
+        // 初始化HTML相关变量
         let (html_evidence, html_literals_hit_lc, html_any_hit_lc) = if !html_safe_str.is_empty() {
             let html_tokens =
                 crate::utils::extractor::token_extract_zh::extract_input_tokens(&html_safe_str);
@@ -262,6 +263,8 @@ impl TechDetector {
                 &self.runtime_lib.ac_cache.html_any_ac,
                 html_tokens,
             );
+
+            //println!("literals_hit完整内容: {:?}", evidence.literals_hit);
 
             // 构建HTML小写命中索引（一次性）
             let literals_hit_lc = build_lower_hit_index(&evidence.literals_hit);

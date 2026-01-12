@@ -298,7 +298,6 @@ const TOKEN_TOTAL_LEN_THRESHOLD: usize = 6;
 /// 字符串最小有效长度：字面量/any项的最小有效长度（≥3视为有效）
 const STR_MIN_VALID_LEN: usize = 3;
 
-// Any列表二次质量过滤常量（数量+质量双维度判定）
 /// Any列表触发质量过滤的最小总数量：列表总长度≥此值才会进入质量筛选
 const ANY_LIST_QUALITY_FILTER_MIN_TOTAL: usize = 3;
 /// Any列表高质量项（长度>3）的最小数量：需至少有此数量的高质量项才执行过滤
@@ -319,34 +318,40 @@ pub fn fold_to_match_gate(
     } = min_evidence_meta;
 
     // ========== 2. 核心判断条件计算（按需计算，避免冗余） ==========
-    let token_len = tokens.len();                  // Token列表长度
-    let has_literal = source_len > 0;              // 是否存在有效源文本（长度>0）
-    // 源字面量有效性判断：非空且长度≥最小有效长度（String类型直接判断）
+    let token_len = tokens.len(); // Token列表长度
+    let has_literal = source_len > 0; // 是否存在有效源文本（长度>0）
+                                      // 源字面量有效性判断：非空且长度≥最小有效长度（String类型直接判断）
     let source_literal_is_valid: bool = source_literal.len() >= STR_MIN_VALID_LEN;
 
     // ========== 3. 高置信度判定逻辑（核心分级策略） ==========
     let has_many_tokens = token_len >= TOKEN_COUNT_THRESHOLD; // 是否为多token（≥3个）
-    // Token密集度判断：多token且总长度≥阈值（保证token具备足够辨识度）
-    let tokens_dense = has_many_tokens 
+                                                              // Token密集度判断：多token且总长度≥阈值（保证token具备足够辨识度）
+    let tokens_dense = has_many_tokens
         && tokens.iter().map(|t| t.len()).sum::<usize>() >= TOKEN_TOTAL_LEN_THRESHOLD;
     // 是否需要验证字面量：存在有效文本但token数量≤1（token不足，需字面量兜底）
     let need_verify_literal = has_literal && token_len <= 1;
     // 高置信度判定：无需验证字面量，且满足"有有效文本"或"token密集"
     // 逻辑说明：高置信度场景下，token具备足够辨识度，可优先使用token匹配
-    let is_high_confidence = !need_verify_literal && (has_literal || tokens_dense);
+    let is_high_confidence = !need_verify_literal && (has_literal || tokens_dense)
+    ||
+    //至少有一个token，并且字面量大于阈值6，视为高价值
+    (token_len > 0 && source_len > TOKEN_TOTAL_LEN_THRESHOLD);
 
     // ========== 4. 预处理结构any列表（过滤无效项+去重） ==========
     let mut structural_any_list = match structural_prereq {
         // 单个子串要求：仅保留长度≥最小有效长度的项
         StructuralPrereq::RequiresSubstring(s) => {
-            if s.len() >= STR_MIN_VALID_LEN { vec![s] } else { vec![] }
+            if s.len() >= STR_MIN_VALID_LEN {
+                vec![s]
+            } else {
+                vec![]
+            }
         }
         // 任意子串要求：过滤掉短于最小有效长度的无效项
-        StructuralPrereq::RequiresAny(v) => {
-            v.into_iter()
-                .filter(|s| s.len() >= STR_MIN_VALID_LEN)
-                .collect()
-        }
+        StructuralPrereq::RequiresAny(v) => v
+            .into_iter()
+            .filter(|s| s.len() >= STR_MIN_VALID_LEN)
+            .collect(),
         // 无前置条件：返回空列表
         StructuralPrereq::None => vec![],
     };
@@ -361,8 +366,7 @@ pub fn fold_to_match_gate(
         .count();
 
     // 2. 判定是否满足过滤条件（数量达标 + 质量达标）
-    let should_filter_by_quality = 
-        total_valid_items >= ANY_LIST_QUALITY_FILTER_MIN_TOTAL // 数量≥3
+    let should_filter_by_quality = total_valid_items >= ANY_LIST_QUALITY_FILTER_MIN_TOTAL // 数量≥3
         && high_quality_item_count >= ANY_LIST_HIGH_QUALITY_ITEM_MIN_COUNT; // 高质量项≥2
 
     // 3. 执行过滤：仅保留长度>3的高质量项

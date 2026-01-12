@@ -43,12 +43,12 @@ impl AcAutomatonCache {
         // 构建HTML维度AC自动机
         let html_literal_ac = AhoCorasickBuilder::new()
             .ascii_case_insensitive(true)
-            .match_kind(MatchKind::LeftmostFirst)
+            .match_kind(MatchKind::LeftmostLongest)
             .build(&html_literals_vec)?;
         
         let html_any_ac = AhoCorasickBuilder::new()
             .ascii_case_insensitive(true)
-            .match_kind(MatchKind::LeftmostFirst)
+            .match_kind(MatchKind::LeftmostLongest)
             .build(&html_any_vec)?;
 
         // 聚合Header维度所有scope的字面量
@@ -72,12 +72,12 @@ impl AcAutomatonCache {
         // 构建Header维度AC自动机
         let header_literal_ac = AhoCorasickBuilder::new()
             .ascii_case_insensitive(true)
-            .match_kind(MatchKind::LeftmostFirst)
+            .match_kind(MatchKind::LeftmostLongest)
             .build(&header_literals_vec)?;
         
         let header_any_ac = AhoCorasickBuilder::new()
             .ascii_case_insensitive(true)
-            .match_kind(MatchKind::LeftmostFirst)
+            .match_kind(MatchKind::LeftmostLongest)
             .build(&header_any_vec)?;
 
         Ok(Self {

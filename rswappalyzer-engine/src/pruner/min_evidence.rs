@@ -36,7 +36,7 @@ struct LiteralTokenInfo {
 #[inline(always)]
 pub fn extract_min_evidence_meta(pattern: &str) -> MinEvidenceMeta {
     let is_debug_pattern = DEBUG_MIN_EVIDENCE
-        && (pattern.contains(r"modernizr") || pattern.contains(r"microsoft-"));
+        && (pattern.contains(r"jquery-ui") || pattern.contains(r"microsoft--------"));
 
     if is_debug_pattern {
         println!(

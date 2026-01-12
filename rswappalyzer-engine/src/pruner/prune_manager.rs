@@ -161,6 +161,14 @@ impl PruneManager {
                 }
                 pass
             } else {
+                // let pass = ctx.literals_hit_lc.contains(literal); // 1. 计算bool值
+                // if ctx.matcher_desc.contains("jquery-ui") {
+                //     log::warn!(
+                //         "microsoft-规则触发，literals_hit_lc: {:?}",
+                //         ctx.literals_hit_lc
+                //     );
+                // }
+                // pass
                 ctx.literals_hit_lc.contains(literal)
                 //contains_ignore_ascii_case(ctx.input, literal)
             };
@@ -243,7 +251,12 @@ impl PruneManager {
     #[inline(always)]
     fn check_literal_stage_with_log(&self, literal: &str, ctx: &PruneContext) -> bool {
         let input_preview = log_format::preview_compact(ctx.input, 120);
-
+        // if ctx.matcher_desc.contains("jquery-ui") {
+        //     log::warn!(
+        //         "jquery-规则触发，literals_hit_lc: {:?}",
+        //         ctx.literals_hit_lc
+        //     );
+        // }
         if !ctx.literals_hit_lc.contains(literal) {
             debug!(
                 "Stage2 (literal) prune filtered | Input preview: {} | Required literal: {} | Rule: {}",
