@@ -1,7 +1,7 @@
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use std::env;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::Read;
 use std::path::Path;
 // 修正：移除不存在的 Bytes 导入，只保留需要的类型
 use lol_html::{HtmlRewriter, RewriteStrSettings};
@@ -38,7 +38,7 @@ pub fn get_test_headers() -> HeaderMap {
     // Server: Microsoft-IIS/10.0
     headers.insert(
         HeaderName::from_static("server"),
-        HeaderValue::from_static("Apache-Coyote/1.1"),
+        HeaderValue::from_static("Microsoft-IIS/10.0"),
     );
     
     // X-Powered-By: ASP.NET

@@ -1,5 +1,7 @@
+use std::{ops::Deref, sync::Arc};
+
 use crate::{
-    CommonIndexedRule, CoreResult, core::{MatchRuleSet, MatchScope, RuleLibrary, TechBasicInfo}, indexer::index_rules::ScopedIndexedRule, scope_pruner::PruneScope
+    CommonIndexedRule, CoreResult, ac_manager::AcAutomatonCache, core::{MatchRuleSet, MatchScope, RuleLibrary, TechBasicInfo}, indexer::index_rules::ScopedIndexedRule, scope_pruner::PruneScope
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -25,6 +27,18 @@ pub struct CompiledRuleLibrary {
     pub known_tokens_by_scope: FxHashMap<PruneScope, FxHashSet<String>>,
     /// 无最小证据规则（按 scope 维度） scope -> techs
     pub no_evidence_index: FxHashMap<PruneScope, FxHashSet<String>>,
+        /// literal 反向索引（literal -> scope -> techs）
+    pub literal_index: FxHashMap<String, FxHashMap<PruneScope, FxHashSet<String>>>,
+    /// 规则库中所有已知的 literal（全局，Vec 便于构建 AC）
+    pub known_literals: Vec<String>,
+    /// 按 scope 分组的 known_literals
+    pub known_literals_by_scope: FxHashMap<PruneScope, FxHashSet<String>>,
+    /// any 反向索引（any_literal -> scope -> techs）
+    pub any_index: FxHashMap<String, FxHashMap<PruneScope, FxHashSet<String>>>,
+    /// 规则库中所有已知的 any literal（全局，Vec 便于构建 AC）
+    pub known_any_literals: Vec<String>,
+    /// 按 scope 分组的 known_any_literals
+    pub known_any_by_scope: FxHashMap<PruneScope, FxHashSet<String>>,
 }
 
 // RuleLibraryIndex
@@ -87,5 +101,58 @@ impl RuleLibraryIndex {
         }
 
         Ok(scoped_rules)
+    }
+}
+
+
+// 规则库运行时实例（包含静态规则库 + 动态 AC 自动机）
+#[derive(Debug, Clone)]
+pub struct RuleLibraryRuntime {
+    // 静态规则库（可序列化/反序列化）
+    pub compiled_lib: Arc<CompiledRuleLibrary>,
+    // 动态 AC 自动机缓存（运行时构建，不序列化）
+    pub ac_cache: Arc<AcAutomatonCache>,
+}
+
+impl RuleLibraryRuntime {
+    /// 从静态规则库构建运行时实例（重建 AC 自动机）
+    pub fn from_compiled(compiled_lib: CompiledRuleLibrary) -> CoreResult<Self> {
+        // 基于 compiled_lib 中的 known_literals/known_any_literals 构建 AC 自动机
+        let ac_cache = AcAutomatonCache::new(&compiled_lib)?;
+
+        Ok(Self {
+            compiled_lib: Arc::new(compiled_lib), 
+            ac_cache: Arc::new(ac_cache),
+        })
+    }
+
+    /// 从缓存文件加载静态规则库，再构建运行时实例
+    pub fn from_cache_file(path: &str) -> CoreResult<Self> {
+        // 1. 反序列化静态规则库
+        let file = std::fs::File::open(path)?;
+        let compiled_lib: CompiledRuleLibrary = serde_json::from_reader(file)?;
+        
+        // 2. 构建 AC 自动机
+        let ac_cache = AcAutomatonCache::new(&compiled_lib)?;
+        
+        Ok(Self {
+            compiled_lib: Arc::new(compiled_lib), 
+            ac_cache: Arc::new(ac_cache),
+        })
+    }
+
+    /// 将静态规则库保存到缓存文件
+    pub fn save_cache_file(&self, path: &str) -> CoreResult<()> {
+        let file = std::fs::File::create(path)?;
+        serde_json::to_writer(file, &self.compiled_lib)?;
+        Ok(())
+    }
+}
+
+impl Deref for RuleLibraryRuntime {
+    type Target = CompiledRuleLibrary;
+
+    fn deref(&self) -> &Self::Target {
+        &self.compiled_lib
     }
 }

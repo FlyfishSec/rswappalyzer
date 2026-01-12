@@ -1,13 +1,6 @@
-//! Header conversion utility module
-//! Header格式转换工具
-//! 核心特性：
-//! 1. 高性能Header转换（FxHashMap、预分配、迭代次数限制）
-//! 2. Cookie专用解析（Set-Cookie/Request-Cookie快速解析）
-//! 3. 零拷贝优化（字节切片操作、避免不必要的字符串分配）
-//! 4. 鲁棒性设计（迭代次数限制、无效值过滤、UTF8安全处理）
-
 use log::warn;
 use http::header::HeaderMap;
+use rswappalyzer_engine::header_evidence::StandardCookie;
 use rustc_hash::FxHashMap;
 
 /// Header转换工具结构体
@@ -107,29 +100,35 @@ impl HeaderConverter {
         (single_header_map, cookie_map)
     }
 
-    /// 解析原始Cookie Header为标准化KV结构
+    /// 解析原始Cookie Header为标准化Cookie实体列表
     /// 输入：原始Cookie Header哈希表 { "set-cookie": [...], "cookie": [...] }
-    /// 输出：标准化Cookie哈希表 { "cookie_name": [values...] }
+    /// 输出：标准化Cookie实体列表
     /// 特性：
     /// 1. 过滤deleted Cookie，避免无效匹配
     /// 2. 统一Cookie名小写，避免大小写敏感
     /// 3. 高性能解析，手写循环替代迭代器
     pub fn parse_to_standard_cookie(
         raw_cookie_header_map: &FxHashMap<String, Vec<String>>
-    ) -> FxHashMap<String, Vec<String>> {
-        let mut standard_cookies = FxHashMap::default();
+    ) -> Vec<StandardCookie> {
+        let mut standard_cookies = Vec::new();
 
         // 分别解析Set-Cookie和Request-Cookie
         for (header_name, raw_cookie_values) in raw_cookie_header_map {
-            match header_name.as_str() {
+            let source = header_name.as_str(); // 来源Header名称（"cookie"/"set-cookie"）
+            match source {
                 "set-cookie" => {
                     for raw in raw_cookie_values {
-                        Self::parse_set_cookie_fast(raw, &mut standard_cookies);
+                        // 解析Set-Cookie并添加到列表
+                        if let Some(cookie) = Self::parse_set_cookie_fast(raw, source) {
+                            standard_cookies.push(cookie);
+                        }
                     }
                 }
                 "cookie" => {
                     for raw in raw_cookie_values {
-                        Self::parse_request_cookie_fast(raw, &mut standard_cookies);
+                        // 解析Request-Cookie（返回多个Cookie）
+                        let cookies = Self::parse_request_cookie_fast(raw, source);
+                        standard_cookies.extend(cookies);
                     }
                 }
                 _ => continue,
@@ -139,56 +138,41 @@ impl HeaderConverter {
         standard_cookies
     }
 
-    /// 快速解析Set-Cookie头（高性能版）
-    /// 特性：
-    /// 1. 极简过滤逻辑（空值/delete值）
-    /// 2. 零拷贝切片操作，减少内存分配
-    /// 3. 仅解析核心KV，忽略过期时间等属性
-    /// 参数：
-    /// - raw_cookie: 原始Set-Cookie字符串
-    /// - standard_cookies: 输出的标准化Cookie哈希表
-    fn parse_set_cookie_fast(raw_cookie: &str, standard_cookies: &mut FxHashMap<String, Vec<String>>) {
+    /// 快速解析Set-Cookie头为标准化Cookie实体
+    /// 返回：Option<StandardCookie>（过滤无效Cookie）
+    fn parse_set_cookie_fast(raw_cookie: &str, source: &str) -> Option<StandardCookie> {
         let cookie_str = raw_cookie.trim();
-        if cookie_str.is_empty() { return; }
+        if cookie_str.is_empty() { return None; }
 
         // 分割Cookie核心KV和属性（仅处理第一个分号前的内容）
         let mut segments = cookie_str.split(';').map(|s| s.trim()).filter(|s| !s.is_empty());
-        let Some(core_kv) = segments.next() else { return; };
+        let Some(core_kv) = segments.next() else { return None; };
 
         // 查找等号位置，分割Key和Value
-        let eq_pos = core_kv.find('=');
-        let (name, value) = match eq_pos {
-            None => return,
-            Some(pos) => (core_kv[0..pos].trim(), core_kv[pos+1..].trim()),
-        };
+        let eq_pos = core_kv.find('=')?;
+        let (name, value) = (core_kv[0..eq_pos].trim(), core_kv[eq_pos+1..].trim());
 
         // 过滤规则：
         // 1. Cookie名不能为空
         // 2. Value不能是"deleted"（忽略已删除的Cookie）
         if name.is_empty() || value.eq_ignore_ascii_case("deleted") {
-            return;
+            return None;
         }
 
-        // 统一Cookie名小写，避免大小写敏感
-        let name_lc = name.to_ascii_lowercase();
-
-        // 添加到标准化Cookie哈希表
-        standard_cookies.entry(name_lc)
-            .or_insert_with(Vec::new)
-            .push(value.to_string());
+        // 统一Cookie名小写，构建实体
+        Some(StandardCookie {
+            name: name.to_ascii_lowercase(),
+            value: value.to_string(),
+            source: source.to_string(),
+        })
     }
 
-    /// 快速解析Request-Cookie头（极致高性能版）
-    /// 优化点：
-    /// 1. 手写循环替代链式迭代器，性能提升15%+
-    /// 2. 字节切片操作，减少字符串分配
-    /// 3. 零拷贝trim，UTF8安全处理
-    /// 参数：
-    /// - raw_cookie: 原始Request-Cookie字符串
-    /// - standard_cookies: 输出的标准化Cookie哈希表
-    fn parse_request_cookie_fast(raw_cookie: &str, standard_cookies: &mut FxHashMap<String, Vec<String>>) {
+    /// 快速解析Request-Cookie头为标准化Cookie实体列表
+    /// 返回：Vec<StandardCookie>（多个Cookie实体）
+    fn parse_request_cookie_fast(raw_cookie: &str, source: &str) -> Vec<StandardCookie> {
+        let mut cookies = Vec::new();
         let cookie_str = raw_cookie.trim();
-        if cookie_str.is_empty() { return; }
+        if cookie_str.is_empty() { return cookies; }
 
         // 手写split+trim+filter，替代链式迭代器，提升性能
         let mut start = 0;
@@ -200,7 +184,9 @@ impl HeaderConverter {
                 let core_kv = Self::trim_slice(slice);
                 
                 if !core_kv.is_empty() {
-                    Self::parse_cookie_kv(core_kv, standard_cookies);
+                    if let Some(cookie) = Self::parse_cookie_kv(core_kv, source) {
+                        cookies.push(cookie);
+                    }
                 }
                 
                 start = i + 1;
@@ -212,8 +198,12 @@ impl HeaderConverter {
         let core_kv = Self::trim_slice(slice);
         
         if !core_kv.is_empty() {
-            Self::parse_cookie_kv(core_kv, standard_cookies);
+            if let Some(cookie) = Self::parse_cookie_kv(core_kv, source) {
+                cookies.push(cookie);
+            }
         }
+
+        cookies
     }
 
     /// 辅助函数：字节切片trim（零拷贝，比str.trim()更快）
@@ -233,18 +223,11 @@ impl HeaderConverter {
         &slice[start..end]
     }
 
-    /// 辅助函数：解析Cookie KV对（字节切片版）
-    /// 特性：
-    /// 1. UTF8安全：使用String::from_utf8_lossy处理非UTF8值
-    /// 2. 过滤deleted值，避免无效匹配
-    /// 3. 内联优化，无函数调用开销
-    /// 参数：
-    /// - core_kv: Cookie核心KV字节切片（如b"name=value"）
-    /// - standard_cookies: 输出的标准化Cookie哈希表
+    /// 辅助函数：解析Cookie KV对为实体
     #[inline(always)]
-    fn parse_cookie_kv(core_kv: &[u8], standard_cookies: &mut FxHashMap<String, Vec<String>>) {
+    fn parse_cookie_kv(core_kv: &[u8], source: &str) -> Option<StandardCookie> {
         // 查找等号位置
-        let eq_pos = core_kv.iter().position(|&b| b == b'=').unwrap_or_else(|| core_kv.len());
+        let eq_pos = core_kv.iter().position(|&b| b == b'=')?;
         let (name_slice, value_slice) = core_kv.split_at(eq_pos);
         
         // Trim名称和值
@@ -256,16 +239,20 @@ impl HeaderConverter {
         };
 
         // 过滤空名称
-        if name.is_empty() { return; }
+        if name.is_empty() { return None; }
         
         // UTF8安全转换，统一转为小写
         let name_str = String::from_utf8_lossy(name).to_ascii_lowercase();
         let value_str = String::from_utf8_lossy(value).to_string();
         
         // 过滤deleted值
-        if value_str.eq_ignore_ascii_case("deleted") { return; }
+        if value_str.eq_ignore_ascii_case("deleted") { return None; }
         
-        // 添加到标准化Cookie哈希表
-        standard_cookies.entry(name_str).or_default().push(value_str);
+        // 构建标准化Cookie实体
+        Some(StandardCookie {
+            name: name_str,
+            value: value_str,
+            source: source.to_string(),
+        })
     }
 }

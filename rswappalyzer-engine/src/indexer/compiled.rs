@@ -1,5 +1,8 @@
 use crate::{
-    Matcher, indexer::{MatcherSpec, enums::MatchGate}, pruner::{min_evidence_checker, scope_pruner}, scope_pruner::PruneScope
+    indexer::{enums::MatchGate, MatcherSpec},
+    prune_manager::{self, PruneContext, PruneMode},
+    scope_pruner::PruneScope,
+    Matcher,
 };
 use once_cell::sync::OnceCell;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -55,123 +58,77 @@ impl CompiledPattern {
         self.exec.get_matcher().matches(input)
     }
 
-    /// 剪枝过滤（纯业务逻辑，无日志，极致性能）
-    /// 优先级：全局黑名单剪枝 > MatchGate统一剪枝
-    /// 参数：
-    /// - input: 待匹配字符串
-    /// - input_tokens: 输入令牌集合（用于最小证据校验）
-    /// 返回：是否通过剪枝（true=继续匹配，false=直接过滤）
+    /// 纯执行模式剪枝（无日志）
     #[inline(always)]
-    pub fn prune_check(&self, input: &str, input_tokens: &FxHashSet<String>) -> bool {
-        // 优先级1: 全局黑名单剪枝
-        scope_pruner::struct_prune(self.scope, input, Some(&self.index_key))
-        // 优先级2: MatchGate统一剪枝（收敛min_evidence + prune_strategy）
-        && self.exec.match_gate.check(input, input_tokens)
+    pub fn prune_check(
+        &self,
+        input: &str,
+        input_tokens: &FxHashSet<String>,
+        literals_hit_lc: &FxHashSet<String>,
+        any_hit_lc: &FxHashSet<String>,
+    ) -> bool {
+        let ctx = PruneContext {
+            scope: self.scope,
+            input,
+            input_tokens,
+            literals_hit_lc,
+            any_hit_lc,
+            index_key: &self.index_key,
+            matcher_desc: &self.exec.get_matcher().describe(),
+            mode: PruneMode::Execute,
+            time_threshold_ms: 50.0,
+        };
+        //if ctx.matcher_desc.contains("microsoft-")&& ctx.scope == PruneScope::Header {println!("{:?}",literals_hit_lc);}
+        prune_manager::GLOBAL_PRUNE_MANAGER.prune(&self.exec.match_gate, &ctx)
     }
 
-    /// 剪枝 + 匹配 核心方法（高性能）
-    /// 参数：
-    /// - input: 待匹配字符串
-    /// - input_tokens: 输入令牌集合
-    /// 返回：是否通过剪枝且匹配成功
+    /// 调试模式剪枝（带日志）
     #[inline(always)]
-    pub fn matches_with_prune(&self, input: &str, input_tokens: &FxHashSet<String>) -> bool {
-        self.prune_check(input, input_tokens) && self.matches(input)
+    pub fn prune_check_with_log(
+        &self,
+        input: &str,
+        input_tokens: &FxHashSet<String>,
+        literals_hit_lc: &FxHashSet<String>,
+        any_hit_lc: &FxHashSet<String>,
+    ) -> bool {
+        let ctx = PruneContext {
+            scope: self.scope,
+            input,
+            input_tokens,
+            literals_hit_lc,
+            any_hit_lc,
+            index_key: &self.index_key,
+            matcher_desc: &self.exec.get_matcher().describe(),
+            mode: PruneMode::Debug,
+            time_threshold_ms: 10.0,
+        };
+        prune_manager::GLOBAL_PRUNE_MANAGER.prune(&self.exec.match_gate, &ctx)
     }
 
-    /// 剪枝 + 匹配（带完整调试日志）
-    /// 参数：
-    /// - input: 待匹配字符串
-    /// - input_tokens: 输入令牌集合
-    /// 返回：是否通过剪枝且匹配成功
+    /// 剪枝 + 匹配
     #[inline(always)]
-    pub fn matches_with_prune_log(&self, input: &str, input_tokens: &FxHashSet<String>) -> bool {
-        self.prune_check_with_log(input, input_tokens) && self.matches(input)
+    pub fn matches_with_prune(
+        &self,
+        input: &str,
+        input_tokens: &FxHashSet<String>,
+        literals_hit_lc: &FxHashSet<String>,
+        any_hit_lc: &FxHashSet<String>,
+    ) -> bool {
+        self.prune_check(input, input_tokens, literals_hit_lc, any_hit_lc) && self.matches(input)
     }
 
-    /// 剪枝过滤（带完整调试日志）
-    /// 参数：
-    /// - input: 待匹配字符串
-    /// - input_tokens: 输入令牌集合
-    /// 返回：是否通过剪枝
+    /// 剪枝 + 匹配（调试模式）
     #[inline(always)]
-    pub fn prune_check_with_log(&self, input: &str, input_tokens: &FxHashSet<String>) -> bool {
-        let input_preview = crate::utils::log_format::preview_compact(input, 120);
-        let input_tokens_preview = crate::utils::log_format::compress_token_set_default(input_tokens);
-        let matcher_desc = self.exec.get_matcher().describe();
-
-        // 1. 全局黑名单剪枝校验
-        if !scope_pruner::struct_prune(self.scope, input, Some(&self.index_key)) {
-            log::debug!(
-                "Blacklist prune filtered | Scope: {:?} | Input preview: {} | Length: {} | Rule: {}",
-                self.scope,
-                input_preview,
-                input.len(),
-                matcher_desc
-            );
-            return false;
-        }
-
-        // 2. MatchGate各类型剪枝校验
-        match &self.exec.match_gate {
-            MatchGate::Open => {
-                log::debug!(
-                    "Prune allowed (fallback) | Reason: MatchGate is Open (no check) | Input preview: {} | Rule: {}",
-                    input_preview,
-                    matcher_desc
-                );
-            }
-            MatchGate::RequireAll(set) => {
-                let (pass_evidence, missing_evidence) =
-                    min_evidence_checker::check_min_evidence_prune_with_missing(set, input_tokens);
-                
-                if !pass_evidence {
-                    log::debug!(
-                        "Min evidence prune filtered | Input preview: {} | Evidence set: {:?} | Missing evidence: {:?} | Input tokens: {:?} | Rule: {}",
-                        input_preview,
-                        set,
-                        missing_evidence,
-                        input_tokens_preview,
-                        matcher_desc
-                    );
-                    return false;
-                } else {
-                    log::debug!(
-                        "Min evidence prune allowed | Reason: {} | Input preview: {} | Evidence set: {:?} | Rule: {}",
-                        if set.is_empty() {
-                            "Empty evidence set (fallback allow)"
-                        } else {
-                            "Token intersection matched"
-                        },
-                        input_preview,
-                        set,
-                        matcher_desc
-                    );
-                }
-            }
-            MatchGate::RequireAnyLiteral(list) => {
-                let hit = list.iter().any(|substr| input.contains(substr));
-                if !hit {
-                    log::debug!(
-                        "Structural prereq prune filtered | Input preview: {} | Prereq (any match): {:?} | Rule: {}",
-                        input_preview,
-                        list,
-                        matcher_desc
-                    );
-                    return false;
-                }
-                log::debug!(
-                    "Structural prereq prune allowed | Prereq (any match): {:?} | Input preview: {} | Rule: {}",
-                    list,
-                    input_preview,
-                    matcher_desc
-                );
-            }
-        }
-
-        true
+    pub fn matches_with_prune_log(
+        &self,
+        input: &str,
+        input_tokens: &FxHashSet<String>,
+        literals_hit_lc: &FxHashSet<String>,
+        any_hit_lc: &FxHashSet<String>
+    ) -> bool {
+        self.prune_check_with_log(input, input_tokens, literals_hit_lc, any_hit_lc) 
+            && self.matches(input)
     }
-
 }
 
 /// 编译后技术规则（完整技术匹配规则）

@@ -1,8 +1,11 @@
 //! rswappalyzer-core 内核错误定义
 //! 封装内核层所有核心错误，与业务层错误解耦，基于thiserror实现类型安全处理
+use aho_corasick::BuildError;
 use thiserror::Error;
 
 use regex::Error as RegexError;
+use serde_json::Error as SerdeJsonError;
+use std::io::Error as IoError;
 
 /// 内核核心错误枚举
 /// 封装rswappalyzer-core层所有错误类型，专注内核级逻辑错误
@@ -67,6 +70,27 @@ pub enum CoreError {
     /// 非法的规则状态转换（规则生命周期状态非法变更）
     #[error("Invalid rule state transition: {0}")]
     InvalidStateTransition(String),
+
+    // ===================== IO 相关错误 =====================
+    /// IO操作失败（文件读写/网络IO等）
+    #[error("IO operation failed: {0}")]
+    IoError(#[from] IoError),
+
+    // ===================== 序列化/反序列化错误 =====================
+    /// JSON序列化/反序列化失败
+    #[error("JSON serialization/deserialization failed: {0}")]
+    SerdeJsonError(#[from] SerdeJsonError),
+
+    // ===================== AC自动机相关错误 =====================
+    /// AC自动机构建失败（自动机初始化/编译错误）
+    #[error("AC automaton build failed: {0}")]
+    AcBuildError(String),
+}
+
+impl From<BuildError> for CoreError {
+    fn from(err: BuildError) -> Self {
+        CoreError::AcBuildError(err.to_string())
+    }
 }
 
 /// 内核层全局Result类型别名

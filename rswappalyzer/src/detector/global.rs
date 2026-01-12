@@ -9,8 +9,7 @@ use std::sync::Arc;
 use once_cell::sync::{Lazy, OnceCell};
 use rswappalyzer_engine::RuleLibrary;
 
-use super::detector::TechDetector;
-use crate::RuleConfig;
+use crate::{RuleConfig, TechDetector};
 use crate::error::{RswResult, RswappalyzerError};
 
 /// 全局检测器实例 - 线程安全单例

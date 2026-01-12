@@ -146,6 +146,7 @@ pub fn html_struct_prune(input: &str) -> bool {
 
 #[inline(always)]
 pub fn header_struct_prune(key: &str, input: &str) -> bool {
+    true;
     // true  = 保留
     // false = 剪枝
     // 仅对可能包含技术栈的 Header 做剪枝

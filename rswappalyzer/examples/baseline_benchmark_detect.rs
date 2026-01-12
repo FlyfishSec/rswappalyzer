@@ -14,7 +14,7 @@ use rswappalyzer::{DetectResult, RuleConfig, detector, init_global_detector};
 use std::time::Instant;
 
 // 统一测试数据源
-mod test_data;
+mod test_data1;
 
 /// 压测核心配置项 - 按需调整，建议循序渐进 1万 → 10万 → 100万
 const BENCHMARK_TOTAL_CALL: u64 = 10000;        // 正式压测总调用次数
@@ -50,9 +50,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ========== 2. 加载标准化测试数据 ==========
     // 复用统一测试数据模块，保证测试数据一致性
-    let test_headers = test_data::get_test_headers();
-    let test_urls = test_data::get_test_urls();
-    let test_body_bytes = test_data::get_test_html_body().as_bytes();
+    let test_headers = test_data1::get_test_headers();
+    let test_urls = test_data1::get_test_urls();
+    let test_body_bytes = test_data1::get_test_html_body().as_bytes();
 
     // ========== 3. 执行预热调用 ==========
     // 关键优化：消除初始化影响（懒加载/正则缓存/内存预分配/CPU分支预测）

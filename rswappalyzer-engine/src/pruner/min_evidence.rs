@@ -8,8 +8,8 @@ use regex_syntax::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
-/// 调试旁路开关 - 编译期生效，零性能侵入
-const DEBUG_MIN_EVIDENCE: bool = true;
+/// 调试旁路开关 - 编译期生效
+const DEBUG_MIN_EVIDENCE: bool = false;
 
 /// 最小证据元信息
 #[derive(Debug, Clone)]
@@ -18,11 +18,11 @@ pub struct MinEvidenceMeta {
     pub tokens: FxHashSet<String>,
     /// 拆分前的原始必现字符串长度（仅交集token对应的共同字面量长度）
     pub source_len: usize,
-    /// 原始必现子串
+    /// 原始必现子串，可字面量包含校验
     pub source_literal: String,
 }
 
-// 新增：记录每个字面量的「原子token+长度」（核心：关联token和原始字面量）
+// 记录每个字面量的「原子token+长度」（核心：关联token和原始字面量）
 #[derive(Debug, Clone)]
 struct LiteralTokenInfo {
     /// 字面量字符串
@@ -35,8 +35,8 @@ struct LiteralTokenInfo {
 
 #[inline(always)]
 pub fn extract_min_evidence_meta(pattern: &str) -> MinEvidenceMeta {
-    let is_debug_pattern =
-        DEBUG_MIN_EVIDENCE && (pattern.contains(r"gophotoweb") || pattern.contains(r"vigbo"));
+    let is_debug_pattern = DEBUG_MIN_EVIDENCE
+        && (pattern.contains(r"modernizr") || pattern.contains(r"microsoft-"));
 
     if is_debug_pattern {
         println!(
@@ -49,15 +49,10 @@ pub fn extract_min_evidence_meta(pattern: &str) -> MinEvidenceMeta {
     let stripped = strip_all_inline_modifiers(&pat_lower);
     let pat = stripped.as_ref();
 
-    let mut raw_must_literals = FxHashSet::default();
-    let mut source_len = 0;
-    let mut source_literal = String::new();
-
-    if is_pure_literal(pat) {
-        // 纯字面量场景：直接关联字面量和token
-        source_len = pat.len();
-        source_literal = pat.to_string();
-        raw_must_literals = extract_atomic_tokens(pat);
+    let (raw_must_literals, source_len, source_literal) = if is_pure_literal(pat) {
+        let pat_cleaned = clean_regex_anchors(pat);
+        let tokens = extract_atomic_tokens(&pat_cleaned);
+        (tokens, pat_cleaned.len(), pat_cleaned)
     } else {
         let hir = match Parser::new().parse(pat) {
             Ok(hir) => hir,
@@ -75,16 +70,13 @@ pub fn extract_min_evidence_meta(pattern: &str) -> MinEvidenceMeta {
                 };
             }
         };
-        // 核心重构：递归提取token + 关联字面量长度
         let (tokens, literal_token_map) = extract_hir_tokens(&hir, is_debug_pattern);
-        raw_must_literals = tokens;
-        // 计算语义对齐的source_len + 必现子串
-        let (len, literal) = calculate_source_len(&raw_must_literals, &literal_token_map);
-        source_len = len;
-        source_literal = literal;
-    }
+        let (len, literal) = calculate_source_len(&tokens, &literal_token_map);
+        (tokens, len, literal)
+    };
 
-    raw_must_literals.retain(|s| !s.is_empty());
+    // 过滤空token
+    let raw_must_literals: FxHashSet<_> = raw_must_literals.into_iter().filter(|s| !s.is_empty()).collect();
 
     if is_debug_pattern {
         println!(
@@ -113,24 +105,24 @@ fn extract_hir_tokens(
         HirKind::Literal(lit) => {
             let s = literal_to_string(lit);
             if let Some(s) = s {
-                let s_trimmed = s.trim().trim_start_matches('^').trim_end_matches('$');
-                if s_trimmed.is_empty() {
+                let s_cleaned = clean_regex_anchors(&s);
+                if s_cleaned.is_empty() {
                     return (tokens, literal_token_map);
                 }
-                let token_set = extract_atomic_tokens(s_trimmed);
+                let token_set = extract_atomic_tokens(&s_cleaned);
                 if is_debug_pattern {
                     println!(
                         "cargo:warning= [DEBUG ROOT] literal={}, split atomic tokens={:?}",
-                        s_trimmed, token_set
+                        s_cleaned, token_set
                     );
                 }
                 // 记录字面量信息
                 literal_token_map.insert(
-                    s_trimmed.to_string(),
+                    s_cleaned.to_string(),
                     LiteralTokenInfo {
-                        literal: s_trimmed.to_string(),
+                        literal: s_cleaned.to_string(),
                         tokens: token_set.clone(),
-                        len: s_trimmed.len(),
+                        len: s_cleaned.len(),
                     },
                 );
                 tokens = token_set;
@@ -201,7 +193,10 @@ fn extract_hir_tokens(
 }
 
 // 核心：计算source_len + 返回对应的必现子串
-fn calculate_source_len(common_tokens: &FxHashSet<String>, literal_token_map: &FxHashMap<String, LiteralTokenInfo>) -> (usize, String) {
+fn calculate_source_len(
+    common_tokens: &FxHashSet<String>,
+    literal_token_map: &FxHashMap<String, LiteralTokenInfo>,
+) -> (usize, String) {
     if common_tokens.is_empty() {
         return (0, String::new()); // 无交集token → 长度0，无必现子串
     }
@@ -210,8 +205,7 @@ fn calculate_source_len(common_tokens: &FxHashSet<String>, literal_token_map: &F
     let mut common_literals = Vec::new();
     for info in literal_token_map.values() {
         // 该字面量包含所有交集token → 是共同必现字面量
-        let contains_all_common = common_tokens.iter()
-            .all(|t| info.tokens.contains(t));
+        let contains_all_common = common_tokens.iter().all(|t| info.tokens.contains(t));
         if contains_all_common {
             common_literals.push((info.len, info.literal.clone()));
         }
@@ -221,7 +215,7 @@ fn calculate_source_len(common_tokens: &FxHashSet<String>, literal_token_map: &F
         return (0, String::new()); // 无符合条件的字面量 → 长度0
     }
 
-    // 取最小长度的必现子串（保守原则）
+    // 取最小长度的必现子串
     common_literals.sort_by_key(|&(len, _)| len);
     let (min_len, min_literal) = common_literals[0].clone();
     (min_len, min_literal)
@@ -249,14 +243,10 @@ pub fn extract_min_evidence_meta_fallback(pattern: &str) -> MinEvidenceMeta {
     let stripped = strip_all_inline_modifiers(&pat_lower);
     let pat = stripped.as_ref();
 
-    let mut raw_must_literals = FxHashSet::default();
-    let mut source_len = 0;
-    let mut source_literal = String::new();
-
-    if is_pure_literal(pat) {
-        source_len = pat.len();
-        source_literal = pat.to_string();
-        raw_must_literals = extract_atomic_tokens(pat);
+    let (mut raw_must_literals, mut source_len, mut source_literal) = if is_pure_literal(pat) {
+        let pat_cleaned = clean_regex_anchors(pat);
+        let tokens = extract_atomic_tokens(&pat_cleaned);
+        (tokens, pat_cleaned.len(), pat_cleaned)
     } else {
         let hir = match Parser::new().parse(pat) {
             Ok(hir) => hir,
@@ -270,12 +260,11 @@ pub fn extract_min_evidence_meta_fallback(pattern: &str) -> MinEvidenceMeta {
             }
         };
         let (tokens, literal_map) = extract_hir_tokens(&hir, false);
-        raw_must_literals = tokens;
-        let (len, literal) = calculate_source_len(&raw_must_literals, &literal_map);
-        source_len = len;
-        source_literal = literal;
-    }
+        let (len, literal) = calculate_source_len(&tokens, &literal_map);
+        (tokens, len, literal)
+    };
 
+    // 过滤空token
     raw_must_literals.retain(|s| !s.is_empty());
 
     // 兜底逻辑：无token时提取安全字面量
@@ -283,8 +272,9 @@ pub fn extract_min_evidence_meta_fallback(pattern: &str) -> MinEvidenceMeta {
         let safe_fallback = safe_fallback_extract(pat);
         raw_must_literals.extend(safe_fallback);
         if !raw_must_literals.is_empty() {
-            source_len = pat.len();
-            source_literal = pat.to_string();
+            let pat_cleaned = clean_regex_anchors(pat);
+            source_len = pat_cleaned.len();
+            source_literal = pat_cleaned;
         }
     }
 
@@ -313,4 +303,13 @@ fn safe_fallback_extract(pattern: &str) -> FxHashSet<String> {
     }
 
     tokens
+}
+
+// 通用锚点清洗函数
+#[inline(always)]
+fn clean_regex_anchors(s: &str) -> String {
+    s.trim()
+        .trim_start_matches('^')
+        .trim_end_matches('$')
+        .to_string()
 }

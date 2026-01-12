@@ -276,7 +276,7 @@ impl PatternProcessor {
         raw_pattern: &str,
         stats: &mut CleanStats,
     ) -> CoreResult<Option<Pattern>> {
-        // 第一步：先判断简单模式，直接返回，不走后续修复逻辑
+        // 判断简单模式
         if self.regex_fixer.is_simple_contains(raw_pattern) {
             stats.contains_count += 1;
             return Ok(Some(Pattern {
@@ -286,23 +286,27 @@ impl PatternProcessor {
             }));
         }
 
-        // 提取版本模板
-        let version_template = if raw_pattern.contains(";version:") {
-            // 带 ;version: 标记的规则 → 解析自定义版本模板
+        // 先彻底拆分正则主体和版本模板
+        // 先处理转义分号，再拆分版本标记
+        // 替换 \; 为 ;（转义分号还原为普通分号，避免拆分后残留\）
+        let raw_pattern_fixed = raw_pattern.replace(r"\;", ";");
+        let (regex_body, version_template) = if raw_pattern_fixed.contains(";version:") {
             let parts: Vec<&str> = raw_pattern.splitn(2, ";version:").collect();
-            parts.get(1).map(|v| v.to_string())
+            let body = parts[0].trim(); // 纯正则主体（去掉版本标记）
+            let template = parts.get(1).map(|v| v.trim().to_string()); // 纯版本模板
+            (body, template)
         } else {
             // 纯正则无标记规则 → 有捕获组则自动赋值默认模板 ${1}
-            // 优先查缓存，避免重复编译
             let (has_capture, _) = self.get_regex_cache(raw_pattern)?;
-            if has_capture {
+            let template = if has_capture {
                 Some("${1}".to_string())
             } else {
                 None
-            }
+            };
+            (raw_pattern, template)
         };
 
-        let pattern_without_delimiter = self.regex_fixer.remove_pcre_delimiter(raw_pattern);
+        let pattern_without_delimiter = self.regex_fixer.remove_pcre_delimiter(regex_body);
         let pattern_trimmed = pattern_without_delimiter.trim();
         if pattern_trimmed.is_empty() {
             return Ok(None);
@@ -386,10 +390,9 @@ impl PatternProcessor {
     // 缓存辅助方法
     fn get_regex_cache(&self, raw_pattern: &str) -> CoreResult<(bool, Option<regex::Regex>)> {
         // 使用 try_borrow_mut 避免 panic，转换为业务错误
-        let mut cache = self.regex_cache.try_borrow_mut()
-            .map_err(|e| CoreError::InternalError(format!(
-                "正则缓存被同时借用，无法获取可变引用：{}", e
-            )))?; 
+        let mut cache = self.regex_cache.try_borrow_mut().map_err(|e| {
+            CoreError::InternalError(format!("正则缓存被同时借用，无法获取可变引用：{}", e))
+        })?;
 
         // 先查缓存
         if let Some((has_capture, re)) = cache.get(raw_pattern) {
@@ -411,7 +414,12 @@ impl PatternProcessor {
         let mut parser: Parser = ParserBuilder::new().build();
         let ast: Ast = match parser.parse(pattern) {
             Ok(ast) => ast,
-            Err(_) => return pattern.to_string(),
+            // 解析失败时返回空字符串，避免脏数据
+            Err(e) => {
+                log::warn!("正则规范化失败：{}，原始模式：{}", e, pattern);
+                //return String::new();
+                return pattern.to_string();
+            }
         };
         ast.to_string()
     }

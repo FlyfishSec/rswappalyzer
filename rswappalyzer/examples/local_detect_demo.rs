@@ -17,7 +17,8 @@ use std::{
 };
 
 // 统一测试数据源
-mod test_data;
+mod test_data1;
+use test_data1 as test_data;
 
 /// 异步主函数 - 本地规则指纹识别演示入口
 /// 执行流程：

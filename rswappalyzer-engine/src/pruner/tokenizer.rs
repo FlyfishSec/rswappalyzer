@@ -7,7 +7,7 @@ pub const MAX_TOKEN_LIMIT: usize = 10000;
 /// 原子token最小长度限制 - 全局统一，过滤无意义短token，必须≥3
 pub const MIN_ATOM_TOKEN_LEN: usize = 3;
 /// 原始输入字面量的最大阈值 - 正则证据侧专用
-pub const MAX_INPUT_LITERAL_LENGTH: usize = 512;
+pub const MAX_INPUT_LITERAL_LENGTH: usize = 1024;
 /// 有效原子字符集：仅包含这些字符的内容才会被作为原子token - 全局统一
 #[inline(always)]
 pub fn is_valid_atomic_char(b: u8) -> bool {

@@ -10,7 +10,8 @@ static LOOK_AROUND_REGEX: Lazy<Regex> = Lazy::new(|| {
 });
 
 static VERSION_MARKER_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"(\\?;version:\\?\d+)"#).unwrap()
+    // 匹配任意 ;version: 开头的内容（包括反向引用、特殊字符）
+    Regex::new(r#"\s*;version:.*"#).unwrap()
 });
 
 static SIMPLE_CONTAINS_REGEX: Lazy<Regex> = Lazy::new(|| {
@@ -36,7 +37,7 @@ impl RegexFixer {
         }
     }
 
-    /// 移除版本标记（;version:\?\d+等）
+    /// 移除版本标记（;version:任意内容）
     pub fn remove_version_marker(&self, pattern: &str) -> String {
         VERSION_MARKER_REGEX.replace_all(pattern, "").to_string()
     }
@@ -78,9 +79,13 @@ impl RegexFixer {
             }
         }
 
-        // 处理末尾残留的\
+        // 处理末尾残留的\（孤立转义符）
         if is_escaping {
-            cleaned.push('\\');
+            // 移除末尾的孤立转义符（而非保留）
+            fixed = true;
+        } else if cleaned.ends_with('\\') {
+            // 兜底：检查是否末尾有孤立转义符
+            cleaned.pop();
             fixed = true;
         }
 

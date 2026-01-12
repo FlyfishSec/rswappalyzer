@@ -21,7 +21,9 @@ use std::{
 };
 
 // 统一测试数据源
+mod test_data2;
 mod test_data3;
+mod test_data1;
 use test_data3 as test_data;
 
 /// 嵌入式规则指纹识别演示主函数
