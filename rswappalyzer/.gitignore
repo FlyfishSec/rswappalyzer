@@ -1,4 +1,5 @@
 /target
+/src/compiled_rules_debug.json
 *.html
 *.del
 *.bak
