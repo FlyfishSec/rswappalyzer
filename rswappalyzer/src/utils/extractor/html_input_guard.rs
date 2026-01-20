@@ -5,8 +5,8 @@ use std::borrow::Cow;
 pub struct HtmlInputGuard;
 
 impl HtmlInputGuard {
-    /// 最大 HTML 长度（2MB）
-    pub const MAX_HTML_LEN: usize = 2 * 1024 * 1024;
+    /// 最大 HTML 长度（10MB）
+    pub const MAX_HTML_LEN: usize = 10 * 1024 * 1024;
     /// 最小有效长度（过滤垃圾）
     pub const MIN_VALID_LEN: usize = 16;
 

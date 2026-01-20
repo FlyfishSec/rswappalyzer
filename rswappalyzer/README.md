@@ -14,31 +14,50 @@ Add this to your `Cargo.toml`:
 cargo add rswappalyzer
 ```
 
-## Quick Start ⚡ | 快速开始
+## ⚡ Quick Start
+
+Below is a minimal example demonstrating how to detect web technologies
+from an HTTP response using **rswappalyzer**.
 
 ```rust
 use reqwest::Client;
 use reqwest::header::HeaderMap;
-use rswappalyzer::detector::detect;
+use rswappalyzer::detector;
 use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // 1. Send HTTP request
     let client = Client::new();
     let url = "https://example.com";
     let resp = client.get(url).send().await?;
+
+    // 2. Extract headers and body
     let headers: HeaderMap = resp.headers().clone();
     let body = resp.bytes().await?;
 
-    let detect_result = detect(&headers, &[url], body.as_ref()).await?;
+    // 3. Run technology detection
+    let result = detector::detect(&headers, &[url], body.as_ref()).await?;
 
-    println!("{}", detect_result.to_json_pretty()?);
+    // 4. Get detected technology list
+    println!("Technologies: {:?}", result.tech_list());
+
+    // 5. Get full structured result as JSON
+    println!("{}", result.to_json_pretty()?);
 
     Ok(())
 }
 ```
 
-Output:
+Example Output:
+
+Detected technologies:
+
+```text
+["Cloudflare"]
+```
+
+Full detection result (JSON):
 
 ```json
 {

@@ -197,6 +197,7 @@ impl PatternProcessor {
                     pattern: "".to_string(),
                     match_type: MatchType::Exists,
                     version_template: None,
+                    confidence: 100,
                 });
                 stats.update_valid_pattern_stats(pattern_type, 1);
                 continue;
@@ -283,30 +284,33 @@ impl PatternProcessor {
                 pattern: raw_pattern.to_string(),
                 match_type: MatchType::Contains,
                 version_template: None, // 简单模式无版本模板
+                confidence: 100,
             }));
         }
 
-        // 先彻底拆分正则主体和版本模板
-        // 先处理转义分号，再拆分版本标记
-        // 替换 \; 为 ;（转义分号还原为普通分号，避免拆分后残留\）
-        let raw_pattern_fixed = raw_pattern.replace(r"\;", ";");
-        let (regex_body, version_template) = if raw_pattern_fixed.contains(";version:") {
-            let parts: Vec<&str> = raw_pattern.splitn(2, ";version:").collect();
-            let body = parts[0].trim(); // 纯正则主体（去掉版本标记）
-            let template = parts.get(1).map(|v| v.trim().to_string()); // 纯版本模板
-            (body, template)
-        } else {
-            // 纯正则无标记规则 → 有捕获组则自动赋值默认模板 ${1}
-            let (has_capture, _) = self.get_regex_cache(raw_pattern)?;
-            let template = if has_capture {
-                Some("${1}".to_string())
-            } else {
-                None
-            };
-            (raw_pattern, template)
-        };
+        // // 先彻底拆分正则主体和版本模板
+        // // 先处理转义分号，再拆分版本标记
+        // // 替换 \; 为 ;（转义分号还原为普通分号，避免拆分后残留\）
+        // let raw_pattern_fixed = raw_pattern.replace(r"\;", ";");
+        // let (regex_body, version_template) = if raw_pattern_fixed.contains(";version:") {
+        //     let parts: Vec<&str> = raw_pattern.splitn(2, ";version:").collect();
+        //     let body = parts[0].trim(); // 纯正则主体（去掉版本标记）
+        //     let template = parts.get(1).map(|v| v.trim().to_string()); // 纯版本模板
+        //     (body, template)
+        // } else {
+        //     // 纯正则无标记规则 → 有捕获组则自动赋值默认模板 ${1}
+        //     let (has_capture, _) = self.get_regex_cache(raw_pattern)?;
+        //     let template = if has_capture {
+        //         Some("${1}".to_string())
+        //     } else {
+        //         None
+        //     };
+        //     (raw_pattern, template)
+        // };
+    
+        let (regex_body, version_template, confidence) = self.parse_pattern(raw_pattern)?;
 
-        let pattern_without_delimiter = self.regex_fixer.remove_pcre_delimiter(regex_body);
+        let pattern_without_delimiter = self.regex_fixer.remove_pcre_delimiter(&regex_body);
         let pattern_trimmed = pattern_without_delimiter.trim();
         if pattern_trimmed.is_empty() {
             return Ok(None);
@@ -384,7 +388,55 @@ impl PatternProcessor {
             pattern: normalized_pattern,
             match_type: MatchType::Regex,
             version_template,
+            confidence: confidence.unwrap_or(100),
         }))
+    }
+
+    /// 提取版本模板,从末尾提取 version/confidence 标记，不拆分正则内部分号
+    fn parse_pattern(&self, raw_pattern: &str) -> CoreResult<(String, Option<String>, Option<u8>)> {
+        let mut pattern = raw_pattern.to_string();
+        let mut version_template: Option<String> = None;
+        let mut confidence: Option<u8> = None;
+
+        // ========== 第一步：提取 confidence 标记（从末尾反向匹配） ==========
+        if let Some(pos) = pattern.rfind(";confidence:") {
+            // 截取标记部分：";confidence:75" → "75"
+            let conf_part = &pattern[pos + ";confidence:".len()..];
+            // 解析置信度（仅保留数字部分，避免多余字符）
+            let conf_num: String = conf_part
+                .chars()
+                .take_while(|c| c.is_ascii_digit())
+                .collect();
+            if !conf_num.is_empty() {
+                confidence = conf_num.parse::<u8>().ok();
+            }
+            // 移除末尾的 confidence 标记（保留正则主体）
+            pattern.truncate(pos);
+        }
+
+        // ========== 第二步：提取 version 标记（从末尾反向匹配） ==========
+        if let Some(pos) = pattern.rfind(";version:") {
+            // 截取版本模板部分
+            let ver_part = &pattern[pos + ";version:".len()..];
+            // 还原版本标记内的转义分号（仅这里还原）
+            let ver_part_fixed = ver_part.replace(r"\;", ";");
+            version_template = Some(ver_part_fixed.trim().to_string());
+            // 移除末尾的 version 标记（保留正则主体）
+            pattern.truncate(pos);
+        }
+
+        // ========== 第三步：还原正则主体内的转义分号（可选，按需） ==========
+        let regex_body = pattern.replace(r"\;", ";").trim().to_string();
+
+        // ========== 第四步：兼容旧规则（无version但有捕获组） ==========
+        if version_template.is_none() && !regex_body.is_empty() {
+            let (has_capture, _) = self.get_regex_cache(&regex_body)?;
+            if has_capture {
+                version_template = Some("${1}".to_string());
+            }
+        }
+
+        Ok((regex_body, version_template, confidence))
     }
 
     // 缓存辅助方法

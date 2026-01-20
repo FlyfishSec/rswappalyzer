@@ -42,7 +42,7 @@ impl RuleCleaner {
                     MatchScope::Html,
                     MatchRuleSet {
                         condition: Default::default(),
-                        list_patterns: html_patterns.0.clone(), // 替换：patterns → list_patterns
+                        list_patterns: html_patterns.0.clone(),
                         keyed_patterns: Vec::new(),
                     },
                 );
@@ -55,7 +55,7 @@ impl RuleCleaner {
                     MatchScope::Script,
                     MatchRuleSet {
                         condition: Default::default(),
-                        list_patterns: script_patterns.0.clone(), // 替换：patterns → list_patterns
+                        list_patterns: script_patterns.0.clone(),
                         keyed_patterns: Vec::new(),
                     },
                 );
@@ -68,7 +68,7 @@ impl RuleCleaner {
                     MatchScope::ScriptSrc,
                     MatchRuleSet {
                         condition: Default::default(),
-                        list_patterns: script_src_patterns.0.clone(), // 替换：patterns → list_patterns
+                        list_patterns: script_src_patterns.0.clone(),
                         keyed_patterns: Vec::new(),
                     },
                 );
@@ -244,8 +244,12 @@ impl RuleCleaner {
             // 2. 核心清理（移除子步骤计时和日志）
             let match_rules = self.clean_from_raw(&tech_name.to_string(), &raw_match_set)?;
 
+            // 显式定义丢弃条件，只丢弃「原本有规则但清理后无规则」的项
+            let should_discard = match_rules.is_empty() && has_any_supported_dimension;
+
             // 判断是否有有效模式
-            if match_rules.is_empty() && has_any_supported_dimension {
+            //if match_rules.is_empty() && has_any_supported_dimension {
+            if should_discard {
                 clean_stats.discarded_tech_rules += 1;
                 // 仅保留丢弃规则的关键打印（移除冗余字段，简化输出）
                 if clean_stats.discarded_tech_rules as usize % PROGRESS_INTERVAL == 0 {
@@ -261,7 +265,7 @@ impl RuleCleaner {
                 continue;
             }
 
-            // 3. 构建基础信息（移除子步骤计时和日志）
+            // 3. 构建基础信息
             let basic_info = TechBasicInfo {
                 tech_name: Some(tech_name.to_string()),
                 category_ids: original_tech.basic.category_ids.clone(),

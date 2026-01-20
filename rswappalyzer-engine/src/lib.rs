@@ -18,6 +18,8 @@ pub mod core;
 pub mod indexer;
 /// 规则清洗+处理+索引构建
 pub mod processor;
+/// 输入证据ac自动机
+pub mod automation;
 /// 剪枝工具
 pub mod pruner;
 /// 规则源解析 (Wappalyzer JSON)
@@ -38,3 +40,4 @@ pub use processor::*;
 pub use pruner::*;
 pub use utils::*;
 pub use error::*;
+pub use automation::*;

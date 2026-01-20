@@ -1,12 +1,24 @@
-//! rswappalyzer - Rust Wappalyzer 极速Web指纹识别引擎
-//! Rswappalyzer - High-performance Web technology fingerprinting engine for Rust
-//! 核心特性：
-//! 1. 多维度Web技术检测（URL/Header/Cookie/HTML/Script/Meta）
-//! 2. 支持内置规则/本地规则/远程规则多种加载方式
-//! 3. 编译期规则压缩，运行期LZ4解压缩（嵌入式规则）
-//! 4. 线程安全的全局单例管理，极致性能优化
+//!                                           _                    
+//!  _ __ _____      ____ _ _ __  _ __   __ _| |_   _ _______ _ __
+//! | '__/ __\ \ /\ / / _` | '_ \| '_ \ / _` | | | | |_  / _ \ '__|
+//! | |  \__ \\ V  V / (_| | |_) | |_) | (_| | | |_| |/ /  __/ |
+//! |_|  |___/ \_/\_/ \__,_| .__/| .__/ \__,_|_|\__, /___\___|_|
+//!                        |_|   |_|            |___/
+//
+//! rswappalyzer - High-performance Wappalyzer-compatible rule detection engine.
+//!
+//! Core Features:
+//! 1. Multi-dimensional Web technology detection
+//!    (URL / Header / Cookie / HTML / Script / Meta)
+//! 2. Supports built-in, local, and remote rule sources
+//! 3. Extreme performance with an AC automaton–based pruning engine,
+//!    enabling millisecond-level detection for 7,000+ rules
+//!
+//! ![Crates.io](https://img.shields.io/crates/v/rswappalyzer)
+//! ![License](https://img.shields.io/crates/l/rswappalyzer)
+//! ![MSRV](https://img.shields.io/badge/MSRV-1.75+-blue)
 
-// 模块导出（按功能分类，提升可读性）
+// 模块导出
 pub mod analyzer; // 多维度分析器模块（URL/Header/Cookie/HTML等）
 pub mod config; // 配置模块（规则配置/重试策略/加载源）
 pub mod detector; // 检测器核心模块（全局单例/检测接口）
@@ -15,9 +27,7 @@ pub mod result; // 检测结果核心模块
 pub mod rule; // 规则模块（加载/缓存/检测结果）
 pub mod utils; // 通用工具模块（Header转换/版本提取/检测更新）
 
-// ========== 核心类型导出（简化外部调用） ==========
-
-// 全局错误类型（核心导出）
+// 全局错误类型
 pub use self::error::{RswResult, RswappalyzerError};
 
 // 配置模块核心结构体与构建器
@@ -33,9 +43,9 @@ pub use crate::rule::{RuleCacheManager, RuleLoader};
 pub use crate::utils::extractor::HtmlExtractor;
 
 // 通用工具模块核心能力
-pub use crate::utils::{DetectionUpdater, HeaderConverter, VersionExtractor};
+pub use crate::utils::{DetectionUpdater, HeaderConverter, VersionExtractor, timing::time_it};
 
-// 检测模块核心接口（包含兼容历史调用的简化封装接口）
+// 检测模块核心接口
 pub use crate::detector::{init_global_detector, init_global_detector_with_rules, TechDetector};
 
 // ========== 嵌入式固化规则库（仅embedded-rules特性开启时编译） ==========
@@ -53,7 +63,7 @@ pub mod rswappalyzer_rules {
     use log::error;
     use lz4_flex::decompress_size_prepended;
     use once_cell::sync::Lazy;
-    use rswappalyzer_engine::CompiledRuleLibrary;
+    use rswappalyzer_engine::{compiled::CompiledBundle};
     use std::sync::Arc;
 
     /// LZ4解压缩封装函数
@@ -76,24 +86,24 @@ pub mod rswappalyzer_rules {
     /// 编译期嵌入的压缩规则库
     /// 说明：
     /// - 文件名由build_config.json配置
-    /// - build.rs注入COMPILED_LIB_FILENAME环境变量
+    /// - build.rs注入COMPILED_BUNDLE_FILENAME环境变量
     /// - OUT_DIR为编译输出目录，由Rust编译器自动设置
     #[allow(dead_code)]
-    static COMPILED_LIB_COMPRESSED: &[u8] =
-        include_bytes!(concat!(env!("OUT_DIR"), "/", env!("COMPILED_LIB_FILENAME")));
+    static COMPILED_BUNDLE_COMPRESSED: &[u8] =
+        include_bytes!(concat!(env!("OUT_DIR"), "/", env!("COMPILED_BUNDLE_FILENAME")));
 
     /// 全局懒加载的编译后规则库单例
     /// 设计：
     /// 1. Lazy：首次访问时初始化，避免启动耗时
     /// 2. Arc：多线程共享，无拷贝开销
     /// 3. 严格错误处理：初始化失败时panic，确保核心功能可用
-    pub static EMBEDDED_COMPILED_LIB: Lazy<Arc<CompiledRuleLibrary>> = Lazy::new(|| {
+    pub static EMBEDDED_COMPILED_BUNDLE: Lazy<Arc<CompiledBundle>> = Lazy::new(|| {
         // 步骤1：LZ4解压缩
-        let decompressed = lz4_decompress(COMPILED_LIB_COMPRESSED).unwrap_or_else(|e| {
+        let decompressed = lz4_decompress(COMPILED_BUNDLE_COMPRESSED).unwrap_or_else(|e| {
             error!(
                 "Failed to decompress embedded rule library: error = {:?}, compressed_size = {}",
                 e,
-                COMPILED_LIB_COMPRESSED.len()
+                COMPILED_BUNDLE_COMPRESSED.len()
             );
             panic!(
                 "Embedded rule library decompression failed. \
@@ -102,7 +112,7 @@ pub mod rswappalyzer_rules {
         });
 
         // 步骤2：JSON反序列化为CompiledRuleLibrary
-        let lib: CompiledRuleLibrary = serde_json::from_slice(&decompressed).unwrap_or_else(|e| {
+        let lib: CompiledBundle = serde_json::from_slice(&decompressed).unwrap_or_else(|e| {
             eprintln!(
                 "Fatal error: Failed to deserialize embedded rule library - {:?}",
                 e

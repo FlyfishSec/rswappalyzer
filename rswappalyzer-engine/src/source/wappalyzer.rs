@@ -157,21 +157,45 @@ impl WappalyzerParser {
             };
 
             let mut res = Vec::new();
+            
+            // 清理 implies 中的 ;version:/;confidence: 标记
+            fn clean_implies_item(s: &str) -> String {
+                // 1. 先还原转义分号（JSON中的 \\; → 实际的 ;）
+                let s_unescaped = s.replace("\\;", ";");
+
+                // 2. 先找 ;version: 标记（反向匹配）
+                let cleaned = if let Some(pos) = s_unescaped.rfind(";version:") {
+                    s_unescaped[0..pos].trim().to_string()
+                }
+                // 3. 再找 ;confidence: 标记（反向匹配）
+                else if let Some(pos) = s_unescaped.rfind(";confidence:") {
+                    s_unescaped[0..pos].trim().to_string()
+                }
+                // 4. 无标记则返回原字符串
+                else {
+                    s_unescaped.trim().to_string()
+                };
+
+                // 5. 需要保留转义分号，还原回去
+                // cleaned.replace(";", "\\;")
+                cleaned // 直接返回无转义的纯净字符串
+            }
+
             match val {
                 Value::Array(arr) => {
                     for item in arr {
                         if let Value::String(s) = item {
-                            let s_trimmed = s.trim().to_string();
-                            if !s_trimmed.is_empty() {
-                                res.push(s_trimmed);
+                            let cleaned = clean_implies_item(s);
+                            if !cleaned.is_empty() {
+                                res.push(cleaned);
                             }
                         }
                     }
                 }
                 Value::String(s) => {
-                    let s_trimmed = s.trim().to_string();
-                    if !s_trimmed.is_empty() {
-                        res.push(s_trimmed);
+                    let cleaned = clean_implies_item(s);
+                    if !cleaned.is_empty() {
+                        res.push(cleaned);
                     }
                 }
                 _ => {}
@@ -179,6 +203,34 @@ impl WappalyzerParser {
 
             (!res.is_empty()).then_some(res)
         }
+        // fn implies_value_to_vec(implies_val: &Option<Value>) -> Option<Vec<String>> {
+        //     let Some(val) = implies_val else {
+        //         return None;
+        //     };
+
+        //     let mut res = Vec::new();
+        //     match val {
+        //         Value::Array(arr) => {
+        //             for item in arr {
+        //                 if let Value::String(s) = item {
+        //                     let s_trimmed = s.trim().to_string();
+        //                     if !s_trimmed.is_empty() {
+        //                         res.push(s_trimmed);
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         Value::String(s) => {
+        //             let s_trimmed = s.trim().to_string();
+        //             if !s_trimmed.is_empty() {
+        //                 res.push(s_trimmed);
+        //             }
+        //         }
+        //         _ => {}
+        //     }
+
+        //     (!res.is_empty()).then_some(res)
+        // }
 
         // 将JSON Value转换为Pattern列表（兼容单字符串/数组格式）
         fn json_val_to_pattern_list(val: &Option<Value>) -> Vec<Pattern> {
@@ -197,6 +249,7 @@ impl WappalyzerParser {
                                     pattern: s_trimmed,
                                     match_type: MatchType::Contains,
                                     version_template: None,
+                                    confidence: 100,
                                 });
                             }
                         }
@@ -209,6 +262,7 @@ impl WappalyzerParser {
                             pattern: s_trimmed,
                             match_type: MatchType::Contains,
                             version_template: None,
+                            confidence: 100,
                         });
                     }
                 }
@@ -280,6 +334,7 @@ impl WappalyzerParser {
                                             pattern: s_trimmed,
                                             match_type: MatchType::Contains,
                                             version_template: None,
+                                            confidence: 100,
                                         },
                                     });
                                 }
@@ -294,6 +349,7 @@ impl WappalyzerParser {
                                 pattern: s_trimmed,
                                 match_type: MatchType::Exists,
                                 version_template: None,
+                                confidence: 100,
                             },
                         });
                     }

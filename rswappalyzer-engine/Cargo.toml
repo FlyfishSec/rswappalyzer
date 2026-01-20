@@ -1,6 +1,6 @@
 [package]
 name = "rswappalyzer-engine"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 authors = ["FlyfishSec <adwinistrator@foxmail.com>"]
 
@@ -9,7 +9,7 @@ license = "MIT"
 repository = "https://github.com/FlyfishSec/rswappalyzer"
 readme = "README.md"
 
-keywords = ["wappalyzer", "fingerprinting", "engine", "detection"]
+keywords = ["rswappalyzer"]
 categories = ["network-programming", "web-programming"]
 
 include = [

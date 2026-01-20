@@ -1,17 +1,15 @@
 use crate::{
-    core::{MatchType, Pattern},
-    min_evidence::MinEvidenceMeta,
-    regex_literal::extract_semantic_safe_features,
-    MatchGate, StructuralPrereq,
+    MatchGate, compiled::{LiteralId, LiteralInterner, PatternEvidence}, core::Pattern,
 };
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex, RegexBuilder};
-use rustc_hash::FxHashMap;
-use std::sync::{Arc, RwLock};
+use rustc_hash::{FxHashMap, FxHashSet};
+use std::{
+    sync::{Arc, RwLock},
+};
 
 /// 全局空正则常量（预编译，用于错误回退）
-/// 零拷贝、零分配，全局复用
-pub static EMPTY_REGEX_ARC: Lazy<Arc<Regex>> = Lazy::new(|| Arc::new(Regex::new(r"^$").unwrap()));
+pub static EMPTY_REGEX_ARC: Lazy<Arc<Regex>> = Lazy::new(|| Arc::new(Regex::new(r"^$").unwrap())); // 安全unwrap：r"^$"是语法合法的极简正则，编译永不失败
 
 /// 全局正则缓存类型定义
 /// Key: (正则模式字符串, 是否忽略大小写)
@@ -29,7 +27,9 @@ pub static REGEX_CACHE: Lazy<RwLock<FxHashMap<RegexCacheKey, Arc<Regex>>>> =
 #[derive(Debug, Clone)]
 pub enum Matcher {
     /// 包含匹配（子字符串）
-    Contains(Arc<String>),
+    /// 包含匹配（子字符串）- 已从 Arc<String> 改为 LiteralId
+    Contains(LiteralId),
+
     /// 存在匹配（始终返回true）
     Exists,
     /// 懒加载正则匹配
@@ -67,25 +67,27 @@ impl Matcher {
                 pattern,
                 case_insensitive,
             } => {
-                // 构建缓存Key（Arc clone仅增加引用计数，零拷贝）
-                let cache_key = (pattern.clone(), *case_insensitive);
+                // 构建缓存Key
+                let cache_key = (pattern.clone(), *case_insensitive); // Arc clone
 
                 // 1. 读锁查询缓存（无锁竞争）
+                // 读锁：正常逻辑下锁不会毒化，unwrap安全（毒化属于程序异常，需panic暴露）
                 let cache_read = REGEX_CACHE.read().unwrap();
                 if let Some(re) = cache_read.get(&cache_key) {
-                    return re.clone();
+                    return re.clone(); // Arc clone
                 }
                 drop(cache_read); // 显式释放读锁
 
                 // 2. 写锁编译并插入缓存（仅缓存未命中时执行）
+                // 写锁：正常逻辑下锁不会毒化，unwrap安全（毒化属于程序异常，需panic暴露）
                 let mut cache_write = REGEX_CACHE.write().unwrap();
                 cache_write
                     .entry(cache_key)
                     .or_insert_with(|| Self::compile_regex(pattern.as_str(), *case_insensitive))
-                    .clone()
+                    .clone() // Arc clone
             }
-            // 非正则类型返回全局空正则（零拷贝）
-            _ => EMPTY_REGEX_ARC.clone(),
+            // 非正则类型返回全局空正则
+            _ => EMPTY_REGEX_ARC.clone(), // arc clone
         }
     }
 
@@ -102,7 +104,7 @@ impl Matcher {
             .map_or_else(
                 |e| {
                     log::warn!("Regex compilation failed: pattern={} error={}", pattern, e);
-                    EMPTY_REGEX_ARC.clone() // 回退到空正则
+                    EMPTY_REGEX_ARC.clone() // Arc clone 回退到空正则
                 },
                 |re| Arc::new(re),
             )
@@ -110,30 +112,50 @@ impl Matcher {
 
     /// 描述匹配器规则（用于日志/调试输出）
     #[inline(always)]
-    pub fn describe(&self) -> String {
+    pub fn describe(&self, literal_interner: &LiteralInterner) -> String {
         match self {
-            Matcher::Contains(s) => format!("contains: {}", s),
+            Matcher::Contains(lit_id) => {
+                let literal = literal_interner.get_literal(*lit_id).unwrap_or("unknown");
+                format!("contains: {} (id: {})", literal, lit_id.0)
+            }
             Matcher::Exists => "exists".to_string(),
             Matcher::LazyRegex { pattern, .. } => format!("lazy_regex: {}", pattern),
         }
     }
+    // pub fn describe(&self) -> String {
+    //     match self {
+    //         Matcher::Contains(s) => format!("contains: {}", s),
+    //         Matcher::Exists => "exists".to_string(),
+    //         Matcher::LazyRegex { pattern, .. } => format!("lazy_regex: {}", pattern),
+    //     }
+    // }
 
-    /// 执行匹配（核心匹配逻辑）
-    /// 参数：input - 待匹配的字符串
-    /// 返回：匹配结果（bool）
+    /// 执行匹配
     #[inline(always)]
-    pub fn matches(&self, input: &str) -> bool {
+    pub fn matches(&self, input: &str, contains_hit_ids: &FxHashSet<LiteralId>) -> bool {
         match self {
-            Matcher::Contains(s) => input.contains(s.as_str()),
+            Matcher::Contains(lid) => contains_hit_ids.contains(lid),
             Matcher::Exists => true,
             Matcher::LazyRegex { .. } => self.get_compiled_regex().is_match(input),
         }
     }
+    // pub fn matches<T: Eq + Hash + Borrow<str>>(
+    //     &self,
+    //     input: &str,
+    //     contains_hit_lc: &FxHashSet<T>,
+    // ) -> bool {
+    //     match self {
+    //         // contains_hit_lc 中的 T 能 Borrow<str>，因此可以匹配 &str 类型的查找值
+    //         Matcher::Contains(s) => contains_hit_lc.contains(s.as_str()),
+    //         Matcher::Exists => true,
+    //         Matcher::LazyRegex { .. } => self.get_compiled_regex().is_match(input),
+    //     }
+    // }
 
     /// 转换为静态匹配器描述体（用于序列化）
     pub fn to_spec(&self) -> super::MatcherSpec {
         match self {
-            Matcher::Contains(s) => super::MatcherSpec::Contains(s.to_string()),
+            Matcher::Contains(lid) => super::MatcherSpec::Contains(*lid),
             Matcher::Exists => super::MatcherSpec::Exists,
             Matcher::LazyRegex {
                 pattern,
@@ -150,14 +172,37 @@ impl Matcher {
     /// - match_type: 匹配类型（Contains/Exists/Regex）
     /// - pattern: 匹配模式
     /// 返回：运行时匹配器实例
-    pub fn from_match_type_lazy(match_type: &MatchType, pattern: &Pattern) -> Self {
-        match match_type {
-            MatchType::Contains => Self::Contains(Arc::new(pattern.pattern.clone())),
-            MatchType::Exists => Self::Exists,
-            MatchType::Regex => Self::LazyRegex {
-                pattern: Arc::new(pattern.pattern.clone()),
-                case_insensitive: true,
-            },
+    // pub fn from_match_type_lazy(
+    //     match_type: &MatchType,
+    //     pattern: &Pattern,
+    //     literal_id: Option<LiteralId>,
+    // ) -> Self {
+    //     match match_type {
+    //         //MatchType::Contains => Self::Contains(Arc::new(pattern.pattern.clone())), // Arc clone
+    //         MatchType::Contains => Self::Contains(literal_id),
+    //         MatchType::Exists => Self::Exists,
+    //         MatchType::Regex => Self::LazyRegex {
+    //             pattern: Arc::new(pattern.pattern.clone()), // Arc clone
+    //             case_insensitive: true,
+    //         },
+    //     }
+    // }
+
+    // Contains 类型：强制传 LiteralId
+    pub fn from_contains(literal_id: LiteralId) -> Self {
+        Self::Contains(literal_id)
+    }
+
+    // Exists 类型：无参数
+    pub fn from_exists() -> Self {
+        Self::Exists
+    }
+
+    // Regex 类型：只传需要的参数
+    pub fn from_regex(pattern: &Pattern, case_insensitive: bool) -> Self {
+        Self::LazyRegex {
+            pattern: Arc::new(pattern.pattern.clone()),
+            case_insensitive,
         }
     }
 
@@ -166,223 +211,136 @@ impl Matcher {
     /// 返回：运行时匹配器实例
     pub fn from_spec(spec: &super::MatcherSpec) -> Self {
         match spec {
-            super::MatcherSpec::Contains(s) => Self::Contains(Arc::new(s.clone())),
+            super::MatcherSpec::Contains(lid) => Self::Contains(*lid),
             super::MatcherSpec::Exists => Self::Exists,
             super::MatcherSpec::Regex {
                 pattern,
                 case_insensitive,
             } => Self::LazyRegex {
-                pattern: Arc::new(pattern.clone()),
+                pattern: Arc::new(pattern.clone()), // Arc clone
                 case_insensitive: *case_insensitive,
             },
         }
     }
 }
 
-/// 结构前置条件扩展方法
-impl StructuralPrereq {
-    /// 从Matcher自动提取结构前置条件（编译期执行）
-    /// 核心逻辑：
-    /// 1. 短字符串（≤2）：返回None
-    /// 2. 长字符串：返回RequiresSubstring
-    /// 3. 正则：提取OR分支字面量，返回RequiresSubstring/RequiresAny
+// /// 结构前置条件扩展方法
+// impl StructuralPrereq {
+//     /// 从Matcher自动提取结构前置条件（编译期执行）
+//     /// 核心逻辑：
+//     /// 1. 短字符串（≤2）：返回None
+//     /// 2. 长字符串：返回RequiresSubstring
+//     /// 3. 正则：提取OR分支字面量，返回RequiresSubstring/RequiresAny
+//     pub fn from_matcher(matcher: &Matcher, literal_interner: &LiteralInterner) -> Self {
+//         match matcher {
+//             Matcher::Contains(lid) => {
+//                 if let Some(s) = literal_interner.get_literal(*lid) {
+//                     if s.len() > 2 {
+//                         StructuralPrereq::RequiresSubstring(s.to_string())
+//                     } else {
+//                         StructuralPrereq::None
+//                     }
+//                 } else {
+//                     StructuralPrereq::None
+//                 }
+//                 // let s = s.as_str();
+//                 // if s.len() > 2 {
+//                 //     StructuralPrereq::RequiresSubstring(s.to_string())
+//                 // } else {
+//                 //     StructuralPrereq::None
+//                 // }
+//             }
 
-    pub fn from_matcher(matcher: &Matcher) -> Self {
-        match matcher {
-            Matcher::Contains(s) => {
-                let s = s.as_str();
-                if s.len() > 2 {
-                    StructuralPrereq::RequiresSubstring(s.to_string())
-                } else {
-                    StructuralPrereq::None
-                }
-            }
+//             Matcher::LazyRegex { pattern, .. } => {
+//                 let pattern_str = pattern.as_str();
 
-            Matcher::LazyRegex { pattern, .. } => {
-                let pattern_str = pattern.as_str();
+//                 // 提取语义安全的特征
+//                 let safe_features = extract_semantic_safe_features(pattern_str);
 
-                // 仅调用一次：提取语义安全的特征
-                let safe_features = extract_semantic_safe_features(pattern_str);
+//                 // 根据安全特征生成结构前置
+//                 match safe_features.len() {
+//                     // 单个特征 → 精准子串匹配
+//                     1 => StructuralPrereq::RequiresSubstring(
+//                         safe_features.into_iter().next().unwrap(),
+//                     ),
+//                     // 多个特征 → OR分支匹配
+//                     n if n > 1 => StructuralPrereq::RequiresAny(safe_features),
+//                     // 无特征 → 无前置条件
+//                     _ => StructuralPrereq::None,
+//                 }
+//             }
 
-                // 根据安全特征生成结构前置
-                match safe_features.len() {
-                    // 单个特征 → 精准子串匹配
-                    1 => StructuralPrereq::RequiresSubstring(
-                        safe_features.into_iter().next().unwrap(),
-                    ),
-                    // 多个特征 → OR分支匹配
-                    n if n > 1 => StructuralPrereq::RequiresAny(safe_features),
-                    // 无特征 → 无前置条件
-                    _ => StructuralPrereq::None,
-                }
-            }
+//             // 3. Exists类型：无前置条件
+//             Matcher::Exists => StructuralPrereq::None,
+//         }
+//     }
+// }
 
-            // 3. Exists类型：无前置条件
-            Matcher::Exists => StructuralPrereq::None,
-        }
-    }
-}
-
-/// 将最小证据元数据和结构前置条件折叠为匹配门（MatchGate）
-/// 核心逻辑：基于token数量/密度、字面量有效性分级判定匹配策略，
-/// 高置信度场景优先使用token匹配，低置信度场景降级为字面量/结构匹配
-pub fn fold_to_match_gate_old(
-    min_evidence_meta: MinEvidenceMeta,
-    structural_prereq: StructuralPrereq,
-) -> MatchGate {
-    // ========== 1. 提取核心数据（解构元数据，减少重复访问） ==========
-    // 证据元数据中的token列表
-    let tokens = min_evidence_meta.tokens;
-    // token列表的长度（用于判定token数量阈值）
-    let token_len = tokens.len();
-    // 源字面量（原始匹配文本）
-    let source_literal = min_evidence_meta.source_literal;
-    // 源字面量的长度（用于判定字面量有效性）
-    let source_literal_len = source_literal.len();
-    // 源文本总长度（判定是否存在有效字面量的基础）
-    let has_literal = min_evidence_meta.source_len > 0;
-
-    // ========== 2. 高置信度token判定逻辑（核心分级条件） ==========
-    // 判定是否满足“多token”条件（token数量≥3）
-    let has_many_tokens = token_len >= 3;
-    // 计算所有token的总长度（用于判定token密度）
-    let total_token_len: usize = tokens.iter().map(|t| t.len()).sum();
-    // 判定token是否“密集”：多token且总长度≥6（保证token具备足够辨识度）
-    let tokens_dense = has_many_tokens && total_token_len >= 6;
-
-    // ========== 3. 核心置信度判断 ==========
-    // 是否需要验证字面量：存在有效字面量但token数量≤1（token不足，需兜底）
-    let need_verify_literal = has_literal && token_len <= 1;
-    // 高置信度判定：无需验证字面量，且满足“有有效字面量”或“token密集”
-    // 注意：此处“高置信度”仅表示“可尝试token匹配”，不代表匹配结果100%准确
-    let is_high_confidence = !need_verify_literal && (has_literal || tokens_dense);
-
-    // ========== 4. 预处理结构前置条件（过滤无效的any列表项） ==========
-    // 提取有效的结构any列表：仅保留长度≥2的字符串（短字符串无匹配价值）
-    let structural_any_list = match structural_prereq {
-        // 子串要求：仅当子串长度≥2时保留
-        StructuralPrereq::RequiresSubstring(s) => {
-            if s.len() >= 2 {
-                vec![s]
-            } else {
-                vec![]
-            }
-        }
-        // 任意子串要求：过滤掉长度<2的无效项
-        StructuralPrereq::RequiresAny(v) => v.into_iter().filter(|s| s.len() >= 2).collect(),
-        // 无前置条件：返回空列表
-        StructuralPrereq::None => vec![],
-    };
-
-    // ========== 5. 核心分支逻辑：根据置信度和字面量有效性选择匹配门 ==========
-    match (is_high_confidence, source_literal_len >= 2) {
-        // 场景1：高置信度 → 优先使用token匹配（忽略字面量，依赖token的辨识度）
-        (true, _) => MatchGate::with_tokens(tokens),
-
-        // 场景2：低置信度 + 有效字面量（长度≥2）→ 字面量兜底 + 结构any匹配
-        (false, true) => MatchGate::with_literal_and_any(source_literal, structural_any_list),
-
-        // 场景3：低置信度 + 无效字面量 → 仅使用结构any匹配（最后的兜底策略）
-        (false, false) => MatchGate::with_any(structural_any_list),
-    }
-}
-
-/// 将最小证据元数据和结构前置条件折叠为匹配门（MatchGate）
-/// 核心逻辑：基于token数量/密度、字面量有效性分级判定匹配策略，
-/// 高置信度场景优先使用token匹配，低置信度场景降级为字面量/结构匹配
+/// 将PatternEvidence折叠为匹配门（MatchGate）
+/// 核心逻辑：基于已提取的字面量分级判定匹配策略
 // 常量定义：匹配策略阈值（统一管理，便于后续调整）
-/// Token数量阈值：判定"多token"的最小数量（≥3视为多token）
-const TOKEN_COUNT_THRESHOLD: usize = 3;
-/// Token总长度阈值：判定"token密集"的最小总长度（≥6视为密集）
-const TOKEN_TOTAL_LEN_THRESHOLD: usize = 6;
-/// 字符串最小有效长度：字面量/any项的最小有效长度（≥3视为有效）
-const STR_MIN_VALID_LEN: usize = 3;
+const STR_MIN_VALID_LEN: usize = 3; // 字符串最小有效长度
+const ANY_LIST_QUALITY_FILTER_MIN_TOTAL: usize = 3; // Any列表过滤最小总数
+const ANY_LIST_HIGH_QUALITY_ITEM_MIN_COUNT: usize = 2; // 高质量项最小数量
+const ANY_LIST_HIGH_QUALITY_ITEM_MIN_LEN: usize = 4; // 高质量项最小长度
+const HIGH_CONFIDENCE_LEN_THRESHOLD: usize = 6; // 高置信度长度阈值
 
-/// Any列表触发质量过滤的最小总数量：列表总长度≥此值才会进入质量筛选
-const ANY_LIST_QUALITY_FILTER_MIN_TOTAL: usize = 3;
-/// Any列表高质量项（长度>3）的最小数量：需至少有此数量的高质量项才执行过滤
-const ANY_LIST_HIGH_QUALITY_ITEM_MIN_COUNT: usize = 2;
-/// Any列表高质量项的最小长度阈值：长度>此值视为高质量项（区分3和>3）
-const ANY_LIST_HIGH_QUALITY_ITEM_MIN_LEN: usize = 4;
+pub fn fold_to_match_gate(evidence: &PatternEvidence) -> MatchGate {
+    let mut literals = evidence.literals.clone();
+    let mut structural_any_list = evidence.any_literals.clone();
 
-pub fn fold_to_match_gate(
-    min_evidence_meta: MinEvidenceMeta,
-    structural_prereq: StructuralPrereq,
-) -> MatchGate {
-    // ========== 1. 解构元数据（减少重复访问，提升可读性） ==========
-    let MinEvidenceMeta {
-        tokens,         // 证据元数据中的token列表
-        source_literal, // 源字面量（String类型，原始匹配文本）
-        source_len,     // 源文本总长度（判定是否存在有效文本的基础）
-        ..              // 忽略未使用的字段
-    } = min_evidence_meta;
+    // 预处理最小证据字面量
+    // 1. 过滤无效项：仅保留长度≥最小有效长度的字面量
+    literals.retain(|s| s.len() >= STR_MIN_VALID_LEN);
 
-    // ========== 2. 核心判断条件计算（按需计算，避免冗余） ==========
-    let token_len = tokens.len(); // Token列表长度
-    let has_literal = source_len > 0; // 是否存在有效源文本（长度>0）
-                                      // 源字面量有效性判断：非空且长度≥最小有效长度（String类型直接判断）
-    let source_literal_is_valid: bool = source_literal.len() >= STR_MIN_VALID_LEN;
+    // 2. 核心判断条件计算
+    // 最小证据字面量有效性：非空且至少有一个有效字面量
+    let has_valid_literals = !literals.is_empty();
+    // 3. 高置信度判定：存在2个以上 或 有超长字面量（>6）
+    let has_long_literal = literals.iter().any(|s| s.len() > HIGH_CONFIDENCE_LEN_THRESHOLD);
+    let is_high_confidence = literals.len() > 1 || has_long_literal;
 
-    // ========== 3. 高置信度判定逻辑（核心分级策略） ==========
-    let has_many_tokens = token_len >= TOKEN_COUNT_THRESHOLD; // 是否为多token（≥3个）
-                                                              // Token密集度判断：多token且总长度≥阈值（保证token具备足够辨识度）
-    let tokens_dense = has_many_tokens
-        && tokens.iter().map(|t| t.len()).sum::<usize>() >= TOKEN_TOTAL_LEN_THRESHOLD;
-    // 是否需要验证字面量：存在有效文本但token数量≤1（token不足，需字面量兜底）
-    let need_verify_literal = has_literal && token_len <= 1;
-    // 高置信度判定：无需验证字面量，且满足"有有效文本"或"token密集"
-    // 逻辑说明：高置信度场景下，token具备足够辨识度，可优先使用token匹配
-    let is_high_confidence = !need_verify_literal && (has_literal || tokens_dense)
-    ||
-    //至少有一个token，并且字面量大于阈值6，视为高价值
-    (token_len > 0 && source_len > TOKEN_TOTAL_LEN_THRESHOLD);
-
-    // ========== 4. 预处理结构any列表（过滤无效项+去重） ==========
-    let mut structural_any_list = match structural_prereq {
-        // 单个子串要求：仅保留长度≥最小有效长度的项
-        StructuralPrereq::RequiresSubstring(s) => {
-            if s.len() >= STR_MIN_VALID_LEN {
-                vec![s]
-            } else {
-                vec![]
-            }
-        }
-        // 任意子串要求：过滤掉短于最小有效长度的无效项
-        StructuralPrereq::RequiresAny(v) => v
-            .into_iter()
-            .filter(|s| s.len() >= STR_MIN_VALID_LEN)
-            .collect(),
-        // 无前置条件：返回空列表
-        StructuralPrereq::None => vec![],
-    };
-
-    // any条件控制逻辑
-    // 数量+质量双维度精细过滤（仅保留高质量项）
-    // 1. 先计算关键指标
-    let total_valid_items = structural_any_list.len(); // 有效项总数量
-    let high_quality_item_count = structural_any_list
+    // 预处理Any列表
+    // 1. 过滤无效项
+    structural_any_list.retain(|s| s.len() >= STR_MIN_VALID_LEN);
+    
+    // 2. 质量过滤（仅当满足数量条件时执行）
+    let total_valid_any = structural_any_list.len();
+    let high_quality_any_count = structural_any_list
         .iter()
-        .filter(|s| s.len() > ANY_LIST_HIGH_QUALITY_ITEM_MIN_LEN) // 统计长度>3的项
+        .filter(|s| s.len() > ANY_LIST_HIGH_QUALITY_ITEM_MIN_LEN)
         .count();
-
-    // 2. 判定是否满足过滤条件（数量达标 + 质量达标）
-    let should_filter_by_quality = total_valid_items >= ANY_LIST_QUALITY_FILTER_MIN_TOTAL // 数量≥3
-        && high_quality_item_count >= ANY_LIST_HIGH_QUALITY_ITEM_MIN_COUNT; // 高质量项≥2
-
-    // 3. 执行过滤：仅保留长度>3的高质量项
-    if should_filter_by_quality {
+    
+    let should_filter_any = total_valid_any >= ANY_LIST_QUALITY_FILTER_MIN_TOTAL 
+        && high_quality_any_count >= ANY_LIST_HIGH_QUALITY_ITEM_MIN_COUNT;
+    
+    if should_filter_any {
         structural_any_list.retain(|s| s.len() > ANY_LIST_HIGH_QUALITY_ITEM_MIN_LEN);
     }
 
-    // ========== 5. 匹配门分支逻辑（基于置信度分级） ==========
-    if is_high_confidence {
-        // 场景1：高置信度 → 优先使用token匹配（依赖token的高辨识度）
-        MatchGate::with_tokens(tokens)
-    } else if source_literal_is_valid {
-        // 场景2：低置信度+有效字面量 → 字面量兜底 + 结构any匹配
-        MatchGate::with_literal_and_any(source_literal, structural_any_list)
+    // 处理空列表
+    let any_literals = if structural_any_list.is_empty() {
+        None
     } else {
-        // 场景3：低置信度+无效字面量 → 仅使用结构any匹配（最后兜底策略）
-        MatchGate::with_any(structural_any_list)
+        Some(structural_any_list)
+    };
+
+    // 匹配门构建
+    if is_high_confidence {
+        // 场景1：高置信度 → 使用全部最小证据字面量（用于交集判断）
+        MatchGate {
+            require_literals: if has_valid_literals { Some(literals) } else { None },
+            require_literal_ids: None,
+            require_any_literals: None,
+            require_any_literal_ids: None,
+        }
+    } else {
+        // 场景2：低置信度 → 使用Any字面量（并集判断）
+        MatchGate {
+            require_literals: None,
+            require_literal_ids: None,
+            require_any_literals: any_literals,
+            require_any_literal_ids: None,
+        }
     }
 }

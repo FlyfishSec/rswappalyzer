@@ -2,34 +2,21 @@
 //! 核心能力：按业务作用域(Url/Html/Script/Css/Header/Meta/Cookie)实现结构化黑名单剪枝
 
 use once_cell::sync::Lazy;
-use regex::Regex;
-use serde::{Deserialize, Serialize};
+use crate::{Scope, utils::safe_lower::safe_lowercase};
 
-use crate::utils::safe_lower::safe_lowercase;
-
-
-/// 剪枝作用域枚举
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PruneScope {
-    Url,
-    Html,
-    Script,
-    Header,
-    Meta,
-    Cookie,
-}
 
 /// 多作用域剪枝统一入口函数
 #[inline(always)]
-pub fn struct_prune(scope: PruneScope, input: &str, key: Option<&str>) -> bool {
+pub fn struct_prune(scope: Scope, input: &str, key: Option<&str>) -> bool {
     match scope {
-        PruneScope::Url => url_struct_prune(input),
-        PruneScope::Html => html_struct_prune(input),
-        PruneScope::Script => script_struct_prune(input),
-        PruneScope::Header => header_struct_prune(key.unwrap_or(""), input),
-        //PruneScope::Meta => meta_struct_prune(key.unwrap_or(""), input),
-        PruneScope::Meta => true,
-        PruneScope::Cookie => cookie_struct_prune(key.unwrap_or(""), input),
+        Scope::Url => url_struct_prune(input),
+        Scope::Html => html_struct_prune(input),
+        //Scope::Script => script_struct_prune(input),
+        Scope::Script => true,
+        Scope::Header => header_struct_prune(key.unwrap_or(""), input),
+        //Scope::Meta => meta_struct_prune(key.unwrap_or(""), input),
+        Scope::Meta => true,
+        Scope::Cookie => cookie_struct_prune(key.unwrap_or(""), input),
     }
 }
 
@@ -40,20 +27,6 @@ pub fn script_struct_prune(input: &str) -> bool {
     let is_js = input.ends_with(".js") || input.ends_with(".JS");
     if !is_js {
         return true;
-    }
-
-    let input_lower = input.to_lowercase();
-    let has_build_key = input_lower.contains("chunk-") 
-        || input_lower.contains("runtime") 
-        || input_lower.contains("hot-update");
-    
-    if has_build_key {
-        static BUILD_RE: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"(?:^|/)(chunk-|runtime|hot-update).*\.js$").unwrap()
-        });
-        if BUILD_RE.is_match(input) {
-            return false; // 确定剪掉
-        }
     }
 
     // 无Vec堆分配的hash判断，零内存开销

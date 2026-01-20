@@ -19,7 +19,7 @@ struct BuildConfig {
     /// 原始规则文件路径
     raw_rules_json_path: String,
     /// 编译后二进制产物文件名
-    compiled_lib_output_name: String,
+    compiled_bundle_output_name: String,
     /// 是否启用LZ4压缩
     enable_compress: bool,
     /// 分类映射JSON文件路径
@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let rule_index = RuleLibraryIndex::from_rule_library(&rule_library)
         .map_err(|e| format!("构建规则索引失败: {}", e))?;
 
-    let compiled_lib =
+    let compiled_bundle =
         RuleIndexer::build_compiled_library(&rule_index, Some(&cfg.category_json_path))
             .map_err(|e| format!("编译规则库失败: {}", e))?;
 
@@ -86,38 +86,38 @@ fn main() -> Result<(), Box<dyn Error>> {
     // println!("cargo:warning=🔍 no_evidence_index.len() = {}", compiled_lib.no_evidence_index.len());
 
     // 序列化json
-    let compiled_lib_bin = serde_json::to_vec(&compiled_lib)
+    let compiled_bundle_bin = serde_json::to_vec(&compiled_bundle)
         .map_err(|e| format!("JSON序列化编译规则库失败: {}", e))?;
 
     // 写入调试json
-    // let debug_json_path = Path::new("compiled_rules_debug.json");
-    // fs::write(&debug_json_path, &compiled_lib_bin)
-    //     .map_err(|e| format!("写入调试 JSON 失败: {} - {}", debug_json_path.display(), e))?;
-    // println!("✅ 调试 JSON 已写入当前目录: {}", debug_json_path.display());
+    let debug_json_path = Path::new("compiled_rules_debug.json");
+    fs::write(&debug_json_path, &compiled_bundle_bin)
+        .map_err(|e| format!("写入调试 JSON 失败: {} - {}", debug_json_path.display(), e))?;
+    println!("✅ 调试 JSON 已写入当前目录: {}", debug_json_path.display());
 
     // 根据配置选择是否进行LZ4压缩
-    let compressed_lib = if cfg.enable_compress {
+    let compressed_bundle = if cfg.enable_compress {
         use lz4_flex::compress_prepend_size;
-        compress_prepend_size(&compiled_lib_bin)
+        compress_prepend_size(&compiled_bundle_bin)
     } else {
-        compiled_lib_bin
+        compiled_bundle_bin
     };
 
     // 将处理后的二进制产物写入构建输出目录
     let out_dir = std::env::var("OUT_DIR")?;
-    let out_path_lib = Path::new(&out_dir).join(&cfg.compiled_lib_output_name);
-    fs::write(&out_path_lib, &compressed_lib)
+    let out_path_lib = Path::new(&out_dir).join(&cfg.compiled_bundle_output_name);
+    fs::write(&out_path_lib, &compressed_bundle)
         .map_err(|e| format!("写入编译库二进制失败: {} - {}", out_path_lib.display(), e))?;
 
     println!(
         "编译库写入完成: {:?} → {}",
-        out_dir, cfg.compiled_lib_output_name
+        out_dir, cfg.compiled_bundle_output_name
     );
 
     // 向编译环境注入构建配置常量，供lib.rs读取
     println!(
-        "cargo:rustc-env=COMPILED_LIB_FILENAME={}",
-        cfg.compiled_lib_output_name
+        "cargo:rustc-env=COMPILED_BUNDLE_FILENAME={}",
+        cfg.compiled_bundle_output_name
     );
 
     Ok(())

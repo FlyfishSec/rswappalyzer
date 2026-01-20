@@ -1,6 +1,6 @@
 use log::warn;
 use http::header::HeaderMap;
-use rswappalyzer_engine::header_evidence::StandardCookie;
+use rswappalyzer_engine::input_evidence::header_evidence::StandardCookie;
 use rustc_hash::FxHashMap;
 
 /// Header转换工具结构体
@@ -28,8 +28,8 @@ impl HeaderConverter {
             }
 
             // 统一转为小写，避免大小写敏感问题
-            let key_str = key.as_str().to_lowercase();
-            let value_str = value.to_str().unwrap_or("").to_lowercase();
+            let key_str = key.as_str().to_ascii_lowercase();
+            let value_str = value.to_str().unwrap_or("").to_ascii_lowercase();
 
             // 按Key聚合多值Header
             map.entry(key_str).or_insert_with(Vec::new).push(value_str);
@@ -85,7 +85,7 @@ impl HeaderConverter {
             let key = k.as_str().to_ascii_lowercase();
             // 安全转换Header值为字符串，失败则返回空字符串
             let value = match v.to_str() {
-                Ok(s) => s.to_string(),
+                Ok(s) => s.to_ascii_lowercase(),
                 Err(_) => String::new(),
             };
 

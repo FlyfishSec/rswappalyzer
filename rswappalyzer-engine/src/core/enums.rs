@@ -51,3 +51,18 @@ pub enum MatchCondition {
     #[default]
     Or,
 }
+
+/// 规则证据类型枚举
+/// 用于区分不同类型的匹配规则，适配不同的执行逻辑
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum EvidenceKind {
+    // /// 基于Token/Literal/Any/Contains的规则（需要证据匹配）
+    // TokenBased,
+    /// 仅检查存在性的规则（Header/Cookie键存在即可，无必现Token）
+    /// 基于Literal/Any/Contains的规则（需要证据匹配）
+    LiteralBased,
+    /// 仅检查存在性的规则（Header/Cookie键存在即可，无必现Token）
+    ExistsOnly,
+    /// 纯正则规则（无必现字面量，仅靠正则匹配）
+    NoLiteral,
+}

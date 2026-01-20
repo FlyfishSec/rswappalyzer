@@ -182,6 +182,7 @@ async fn detect_with_error_handling(
             warn!("❌ rswappalyzer识别失败: {}", e);
             DetectResult {
                 technologies: Vec::new(),
+                implies: None,
             }
         }
     }

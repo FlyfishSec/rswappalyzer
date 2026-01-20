@@ -1,12 +1,12 @@
 [package]
 name = "rswappalyzer"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 authors = ["FlyfishSec <adwinistrator@foxmail.com>"]
 description = "A high-performance Wappalyzer rule detection engine."
 repository = "https://github.com/FlyfishSec/rswappalyzer"
 license = "MIT"
-keywords = ["wappalyzer", "web-detect", "fingerprint"]
+keywords = ["rswappalyzer", "wappalyzer", "technology-detect", "webfingerprint"]
 categories = ["web-programming", "network-programming"]
 readme = "README.md"
 
@@ -30,12 +30,11 @@ crate-type = ["rlib"]
 # Runtime dependencies
 # ======================
 [dependencies]
-rswappalyzer-engine = "0.2.2"
-#rswappalyzer-engine = { path = "../rswappalyzer-engine", version = "0.2.2"}
+#rswappalyzer-engine = "0.2.2"
+rswappalyzer-engine = { path = "../rswappalyzer-engine", version = "0.2.3"}
 
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
-
 regex = { version = "1", features = ["perf"] }
 regex-syntax = "0.8"
 aho-corasick = "1.1"
@@ -72,8 +71,8 @@ tracing-log = { version = "0.2", optional = true }
 # Build dependencies
 # ======================
 [build-dependencies]
-rswappalyzer-engine = { version = "0.2.2" }
-#rswappalyzer-engine = { path = "../rswappalyzer-engine", version = "0.2.2" }
+#rswappalyzer-engine = { version = "0.2.3" }
+rswappalyzer-engine = { path = "../rswappalyzer-engine", version = "0.2.3" }
 
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"

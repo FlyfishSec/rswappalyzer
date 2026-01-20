@@ -1,16 +1,18 @@
 mod enums;
 pub mod matcher;
 mod index_rules;
-mod compiled;
-mod library;
-mod builder;
+pub mod compiled;
+//mod library;
+pub mod builder;
+pub mod rule_lib_index;
 
 //mod tokens;
 
 // 对外只导出具体内容，不导出模块名
-pub use enums::{MatchGate, StructuralPrereq, MatcherSpec};
+pub use enums::{MatchGate, StructuralPrereq, MatcherSpec, Scope};
 pub use matcher::Matcher;
 pub use index_rules::{CommonIndexedRule, ScopedIndexedRule, RawMatchSet, PatternList, PatternMap};
-pub use compiled::{CompiledPattern, CompiledTechRule, ExecutablePattern};
-pub use library::{RuleLibraryRuntime, CompiledRuleLibrary, RuleLibraryIndex};
+pub use compiled::compiled_pattern::{CompiledPattern, CompiledTechRule, ExecutablePattern};
+pub use compiled::library::CompiledRuleLibrary;
+pub use rule_lib_index::{RuleLibraryRuntime, RuleLibraryIndex};
 pub use builder::rule_indexer::RuleIndexer;

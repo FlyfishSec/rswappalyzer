@@ -51,7 +51,7 @@ impl DetectionUpdater {
     pub fn apply_implies<S: BuildHasher>(
         compiled_lib: &CompiledRuleLibrary,
         detected: &mut HashMap<String, (u8, Option<String>), S>,
-    ) -> FxHashMap<String, Vec<String>> {
+    ) -> (FxHashMap<String, Vec<String>>, Vec<String>) {
         // 推导技术名 → 所有来源技术名（自动去重，支持多来源）
         let mut imply_source_map: FxHashMap<String, FxHashSet<String>> = FxHashMap::default();
         // 推导技术的基础置信度 & 加权配置
@@ -66,7 +66,7 @@ impl DetectionUpdater {
                     let target_tech_name = target_tech_name.trim();
                     // 过滤无效值：空字符串/目标技术不存在/目标已被真实匹配
                     if target_tech_name.is_empty() 
-                        || !compiled_lib.tech_patterns.contains_key(target_tech_name)
+                        //|| !compiled_lib.tech_patterns.contains_key(target_tech_name)
                         || detected.contains_key(target_tech_name)
                     {
                         continue;
@@ -98,7 +98,11 @@ impl DetectionUpdater {
             imply_map.insert(k, source_vec);
         }
 
-        imply_map
+        // 提取所有推导技术名
+        let mut implies_list: Vec<String> = imply_map.keys().cloned().collect();
+        implies_list.sort_unstable();
+
+        (imply_map, implies_list)
     }
     
     /// 辅助函数：判断新结果是否比旧结果更优

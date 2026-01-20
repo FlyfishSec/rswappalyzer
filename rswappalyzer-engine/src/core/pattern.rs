@@ -10,6 +10,7 @@ pub struct Pattern {
     pub pattern: String,
     pub match_type: MatchType,
     pub version_template: Option<String>,
+    pub confidence: u8,
 }
 
 /// KV规则结构体（Header/Meta/Cookie专用）

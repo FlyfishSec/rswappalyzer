@@ -4,6 +4,7 @@ pub mod html_extractor;
 //pub mod html_extractor3_h5;
 
 pub mod html_input_guard;
-pub mod token_extract;
-pub mod token_extract_zh;
+//pub mod token_extract;
+//pub mod token_extract_zh;
+//pub mod token_extract_fast;
 pub use self::html_extractor::HtmlExtractor;
