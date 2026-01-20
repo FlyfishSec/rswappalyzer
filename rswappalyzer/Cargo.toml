@@ -61,9 +61,6 @@ reqwest = { version = "0.12", optional = true, default-features = false, feature
 ] }
 tokio = { version = "1", optional = true, features = ["fs", "sync"] }
 
-# --- CLI only ---
-clap = { version = "4", optional = true, features = ["derive", "cargo"] }
-
 tracing = { version = "0.1", optional = true }
 tracing-log = { version = "0.2", optional = true }
 
@@ -105,7 +102,6 @@ embedded-rules = []
 full-meta = []
 async-io = ["dep:tokio"]
 remote-loader = ["dep:reqwest", "dep:tokio"]
-cli = ["dep:clap"]
 tracing = ["dep:tracing", "dep:tracing-log"]
 
 [[example]]
