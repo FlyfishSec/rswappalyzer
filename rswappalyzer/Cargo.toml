@@ -30,8 +30,8 @@ crate-type = ["rlib"]
 # Runtime dependencies
 # ======================
 [dependencies]
-#rswappalyzer-engine = "0.2.2"
-rswappalyzer-engine = { path = "../rswappalyzer-engine", version = "0.2.3"}
+rswappalyzer-engine = "0.2.3"
+#rswappalyzer-engine = { path = "../rswappalyzer-engine", version = "0.2.3"}
 
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
@@ -71,8 +71,8 @@ tracing-log = { version = "0.2", optional = true }
 # Build dependencies
 # ======================
 [build-dependencies]
-#rswappalyzer-engine = { version = "0.2.3" }
-rswappalyzer-engine = { path = "../rswappalyzer-engine", version = "0.2.3" }
+rswappalyzer-engine = { version = "0.2.3" }
+#rswappalyzer-engine = { path = "../rswappalyzer-engine", version = "0.2.3" }
 
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
