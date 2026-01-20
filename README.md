@@ -14,7 +14,7 @@ Add this to your `Cargo.toml`:
 cargo add rswappalyzer
 ```
 
-## ⚡ Quick Start
+## Quick Start⚡| 快速开始
 
 Below is a minimal example demonstrating how to detect web technologies
 from an HTTP response using **rswappalyzer**.
