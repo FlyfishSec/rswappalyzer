@@ -14,7 +14,7 @@ use serde_json::to_string_pretty;
 use std::{error::Error, path::PathBuf, time::{Duration, Instant}};
 
 // 统一测试数据源
-mod test_data;
+mod test_data3;
 
 /// 异步主函数 - 远程规则指纹识别演示入口
 /// 执行流程：

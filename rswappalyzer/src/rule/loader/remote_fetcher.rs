@@ -7,7 +7,7 @@
 //! 4. 特性条件编译（remote-loader特性控制功能开关）
 //! 5. 鲁棒的错误处理（详细错误上下文，友好日志提示）
 
-use crate::error::{RswResult, RswappalyzerError};
+use crate::error::{RswResult, RswError};
 use crate::rule::loader::ETagRecord;
 #[cfg(feature = "remote-loader")]
 use reqwest::Client;
@@ -38,7 +38,7 @@ impl RemoteRuleFetcher {
         F: FnMut() -> Fut,
         Fut: std::future::Future<Output = RswResult<T>> + Send + 'static,
     {
-        let mut last_err: Option<RswappalyzerError> = None;
+        let mut last_err: Option<RswError> = None;
 
         for attempt in 0..=max_retries {
             match func().await {
@@ -58,7 +58,7 @@ impl RemoteRuleFetcher {
         }
 
         Err(last_err.unwrap_or_else(|| {
-            RswappalyzerError::RuleLoadError("All retry attempts exhausted".to_string())
+            RswError::RuleLoadError("All retry attempts exhausted".to_string())
         }))
     }
 
@@ -101,7 +101,7 @@ impl RemoteRuleFetcher {
                         .send()
                         .await
                         .map_err(|e| {
-                            RswappalyzerError::RuleLoadError(format!(
+                            RswError::RuleLoadError(format!(
                                 "Failed to request ETag: {:#?}",
                                 e
                             ))
@@ -109,7 +109,7 @@ impl RemoteRuleFetcher {
 
                     // 检查响应状态码
                     if !response.status().is_success() {
-                        return Err(RswappalyzerError::RuleLoadError(format!(
+                        return Err(RswError::RuleLoadError(format!(
                             "Failed to get ETag: URL {} returned status code {}",
                             url,
                             response.status()
@@ -121,14 +121,14 @@ impl RemoteRuleFetcher {
                         .headers()
                         .get(reqwest::header::ETAG)
                         .ok_or_else(|| {
-                            RswappalyzerError::RuleLoadError(format!(
+                            RswError::RuleLoadError(format!(
                                 "URL {} did not return ETag header",
                                 url
                             ))
                         })?
                         .to_str()
                         .map_err(|e| {
-                            RswappalyzerError::RuleLoadError(format!(
+                            RswError::RuleLoadError(format!(
                                 "Failed to convert ETag to string: {}",
                                 e
                             ))
@@ -199,7 +199,7 @@ impl RemoteRuleFetcher {
                         .send()
                         .await
                         .map_err(|e| {
-                            RswappalyzerError::RuleLoadError(format!(
+                            RswError::RuleLoadError(format!(
                                 "Failed to fetch rules: {:#?}",
                                 e
                             ))
@@ -207,7 +207,7 @@ impl RemoteRuleFetcher {
 
                     // 检查响应状态码
                     if !response.status().is_success() {
-                        return Err(RswappalyzerError::RuleLoadError(format!(
+                        return Err(RswError::RuleLoadError(format!(
                             "Failed to fetch rules: URL {} returned status code {}",
                             url,
                             response.status()
@@ -216,7 +216,7 @@ impl RemoteRuleFetcher {
 
                     // 异步读取响应字节
                     let bytes = response.bytes().await.map_err(|e| {
-                        RswappalyzerError::RuleLoadError(format!(
+                        RswError::RuleLoadError(format!(
                             "Failed to read response bytes: {}",
                             e
                         ))
@@ -226,7 +226,7 @@ impl RemoteRuleFetcher {
                     let parser = WappalyzerParser::default();
                     let original_lib: WappalyzerOriginalRuleLibrary =
                         parser.parse_from_bytes(&bytes).map_err(|e| {
-                            RswappalyzerError::RuleLoadError(format!(
+                            RswError::RuleLoadError(format!(
                                 "Failed to parse original rules: {}",
                                 e
                             ))
@@ -276,7 +276,7 @@ impl RemoteRuleFetcher {
         _url: &str,
         _retry_policy: &crate::RetryPolicy,
     ) -> RswResult<Option<String>> {
-        Err(RswappalyzerError::RuleLoadError(
+        Err(RswError::RuleLoadError(
             "remote-loader feature is not enabled".to_string(),
         ))
     }
@@ -290,7 +290,7 @@ impl RemoteRuleFetcher {
         _url: &str,
         _retry_policy: &crate::RetryPolicy,
     ) -> RswResult<RuleLibrary> {
-        Err(RswappalyzerError::RuleLoadError(
+        Err(RswError::RuleLoadError(
             "remote-loader feature is not enabled".to_string(),
         ))
     }

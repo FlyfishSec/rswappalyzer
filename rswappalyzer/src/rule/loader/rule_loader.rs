@@ -6,7 +6,7 @@ use rswappalyzer_engine::{RuleLibrary, RuleProcessor};
 use std::fs;
 use std::path::Path;
 
-use crate::error::{RswResult, RswappalyzerError};
+use crate::error::{RswResult, RswError};
 use crate::{RuleCacheManager, RuleConfig, RuleOrigin};
 
 /// 规则加载器
@@ -102,7 +102,7 @@ impl RuleLoader {
 
         // 2. 读取并解析原始规则文件
         let raw_content = fs::read_to_string(path).map_err(|e| {
-            RswappalyzerError::RuleLoadError(format!(
+            RswError::RuleLoadError(format!(
                 "Failed to read raw rule file: {} - {}",
                 path.display(),
                 e
@@ -111,7 +111,7 @@ impl RuleLoader {
 
         let parser = WappalyzerParser::default();
         let raw_lib = parser.parse_to_rule_lib(&raw_content).map_err(|e| {
-            RswappalyzerError::RuleLoadError(format!("Failed to parse rules: {}", e))
+            RswError::RuleLoadError(format!("Failed to parse rules: {}", e))
         })?;
 
         // 3. 清洗拆分规则并缓存
@@ -130,7 +130,7 @@ impl RuleLoader {
     async fn load_remote_rules(&self, config: &RuleConfig) -> RswResult<RuleLibrary> {
         // 1. 校验远程配置是否存在
         let remote_opts = config.remote_options.as_ref().ok_or_else(|| {
-            RswappalyzerError::RuleLoadError("Missing remote network configuration".into())
+            RswError::RuleLoadError("Missing remote network configuration".into())
         })?;
 
         // 2. 解析远程规则源URL和名称
@@ -140,7 +140,7 @@ impl RuleLoader {
             "wappalyzergo_official"
         ),
         RuleOrigin::RemoteCustom(custom_url) => (custom_url.as_str(), "wappalyzer_custom"),
-        _ => return Err(RswappalyzerError::RuleLoadError("Not a remote rule source".into())),
+        _ => return Err(RswError::RuleLoadError("Not a remote rule source".into())),
     };
 
         // 3. 优先尝试加载缓存（核心逻辑分支点）
@@ -162,7 +162,7 @@ impl RuleLoader {
             .timeout(remote_opts.timeout)
             .build()
             .map_err(|e| {
-                RswappalyzerError::RuleLoadError(format!("Failed to build HTTP client: {}", e))
+                RswError::RuleLoadError(format!("Failed to build HTTP client: {}", e))
             })?;
 
         // 5. 根据check_update决定是否执行ETag检测
@@ -196,7 +196,7 @@ impl RuleLoader {
                     if use_local_cache {
                         debug!("Rule library is up-to-date, using local cache");
                         self.load_from_cache_unified(config).await.ok_or_else(|| {
-                            RswappalyzerError::RuleLoadError(
+                            RswError::RuleLoadError(
                                 "Local cache missing but ETag matches".into(),
                             )
                         })?
@@ -240,7 +240,7 @@ impl RuleLoader {
     /// 非remote-loader模式下的远程加载逻辑（直接返回错误）
     #[cfg(not(feature = "remote-loader"))]
     async fn load_remote_rules(&self, _config: &RuleConfig) -> RswResult<RuleLibrary> {
-        Err(RswappalyzerError::RuleLoadError(
+        Err(RswError::RuleLoadError(
             "Please enable 'remote-loader' feature to load remote rules".into(),
         ))
     }
@@ -253,10 +253,10 @@ impl RuleLoader {
     }
 }
 
-/// 异步任务错误转换（JoinError → RswappalyzerError）
+/// 异步任务错误转换（JoinError → RswError）
 #[cfg(feature = "remote-loader")]
-impl From<tokio::task::JoinError> for RswappalyzerError {
+impl From<tokio::task::JoinError> for RswError {
     fn from(err: tokio::task::JoinError) -> Self {
-        RswappalyzerError::AsyncTaskError(format!("Async task failed: {}", err))
+        RswError::AsyncTaskError(format!("Async task failed: {}", err))
     }
 }

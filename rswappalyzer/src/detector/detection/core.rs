@@ -55,7 +55,7 @@ use rswappalyzer_engine::{
 /// 成功时返回标准化的检测结果 `DetectResult`（包含检测到的技术栈、隐含推导结果）；
 /// 失败时返回 `RswResult` 封装的错误类型，兼容库统一错误处理体系
 #[inline(always)]
-pub fn detect(
+pub(crate) fn detect(
     detector: &TechDetector,
     headers: &HeaderMap,
     urls: &[&str],
@@ -78,10 +78,9 @@ pub fn detect(
     // ========== 阶段2：HTML证据构建（核心生命周期修复） ==========
     // 将字节流转换为UTF-8字符串（非UTF-8时自动替换为替换字符）
     let html_str = String::from_utf8_lossy(body);
-    // HTML输入安全校验 + 提取核心信息（解决临时值生命周期逃逸）
+    // HTML输入安全校验 + 提取核心信息
     let (html_safe_str, extract_result) = match HtmlInputGuard::guard(html_str) {
         Some(valid_html) => {
-            // 统一转为小写，确保规则匹配时大小写不敏感
             let html_lc = Cow::Owned(valid_html.to_ascii_lowercase());
             let er = HtmlExtractor::extract(&html_lc);
             (Some(html_lc), Some(er))
@@ -132,7 +131,7 @@ pub fn detect(
     // 将原始检测结果转换为标准化的Technology列表
     let technologies = aggregate_detection_results(detector, &detected, &imply_map);
 
-    // 构建最终返回结果（空implies列表转为None，减少冗余）
+    // 构建最终返回结果
     Ok(DetectResult {
         technologies,
         implies: if implies_list.is_empty() {
@@ -143,26 +142,26 @@ pub fn detect(
     })
 }
 
-/// TechDetector的检测方法便捷封装
-/// 
-/// 作为检测器结构体的实例方法，简化外部调用接口，内部直接转发至核心detect函数。
-/// 标记为 `#[inline(always)]` 以消除封装层的性能开销，保证调用效率与直接调用核心函数一致。
-/// 
-/// # 参数
-/// - `headers`: HTTP响应头映射表
-/// - `urls`: 待检测的URL列表
-/// - `body`: HTTP响应体原始字节数据
-/// 
-/// # 返回值
-/// 与核心`detect`函数一致，返回标准化检测结果或错误
-impl crate::detector::TechDetector {
-    #[inline(always)]
-    pub fn detect(
-        &self,
-        headers: &HeaderMap,
-        urls: &[&str],
-        body: &[u8],
-    ) -> RswResult<DetectResult> {
-        super::super::detection::core::detect(self, headers, urls, body)
-    }
-}
+// /// TechDetector的检测方法便捷封装
+// /// 
+// /// 作为检测器结构体的实例方法，简化外部调用接口，内部直接转发至核心detect函数。
+// /// 标记为 `#[inline(always)]` 以消除封装层的性能开销，保证调用效率与直接调用核心函数一致。
+// /// 
+// /// # 参数
+// /// - `headers`: HTTP响应头映射表
+// /// - `urls`: 待检测的URL列表
+// /// - `body`: HTTP响应体原始字节数据
+// /// 
+// /// # 返回值
+// /// 与核心`detect`函数一致，返回标准化检测结果或错误
+// impl crate::detector::TechDetector {
+//     #[inline(always)]
+//     pub fn detect(
+//         &self,
+//         headers: &HeaderMap,
+//         urls: &[&str],
+//         body: &[u8],
+//     ) -> RswResult<DetectResult> {
+//         super::super::detection::core::detect(self, headers, urls, body)
+//     }
+// }

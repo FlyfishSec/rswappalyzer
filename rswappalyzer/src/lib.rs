@@ -29,7 +29,7 @@ pub mod rule; // 规则模块（加载/缓存/检测结果）
 pub mod utils; // 通用工具模块（Header转换/版本提取/检测更新）
 
 // 全局错误类型
-pub use self::error::{RswResult, RswappalyzerError};
+pub use self::error::{RswResult, RswError};
 
 // 配置模块核心结构体与构建器
 pub use crate::config::rule::{
@@ -47,7 +47,7 @@ pub use crate::utils::extractor::HtmlExtractor;
 pub use crate::utils::{DetectionUpdater, HeaderConverter, VersionExtractor, timing::time_it};
 
 // 检测模块核心接口
-pub use crate::detector::{init_global_detector, init_global_detector_with_rules, TechDetector};
+pub use crate::detector::{TechDetector};
 
 // ========== 嵌入式固化规则库（仅embedded-rules特性开启时编译） ==========
 /// 嵌入式规则库模块（仅启用embedded-rules特性时编译）
@@ -74,9 +74,9 @@ pub mod rswappalyzer_rules {
     /// 3. 日志友好的错误提示
     /// 参数：bytes - 压缩后的LZ4字节数组
     /// 返回：解压缩后的字节数组 | 错误（含详细上下文）
-    fn lz4_decompress(bytes: &[u8]) -> Result<Vec<u8>, RswappalyzerError> {
+    fn lz4_decompress(bytes: &[u8]) -> Result<Vec<u8>, RswError> {
         decompress_size_prepended(bytes).map_err(|e| {
-            RswappalyzerError::RuleLoadError(format!(
+            RswError::RuleLoadError(format!(
                 "Failed to decompress rule library with LZ4: {:?}, compressed size: {} bytes",
                 e,
                 bytes.len()

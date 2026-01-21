@@ -34,10 +34,16 @@ impl HtmlInputGuard {
         match html {
             Cow::Owned(ref mut s) => {
                 // 原地trim：先找头部有效边界
-                let start = s.bytes().position(|b| !b.is_ascii_whitespace() && !b.is_ascii_control()).unwrap_or(0);
+                let start = s
+                    .bytes()
+                    .position(|b| !b.is_ascii_whitespace() && !b.is_ascii_control())
+                    .unwrap_or(0);
                 // 再找尾部有效边界
-                let end = s.bytes().rposition(|b| !b.is_ascii_whitespace() && !b.is_ascii_control()).map_or(0, |p| p + 1);
-                
+                let end = s
+                    .bytes()
+                    .rposition(|b| !b.is_ascii_whitespace() && !b.is_ascii_control())
+                    .map_or(0, |p| p + 1);
+
                 if start >= end || end - start < Self::MIN_VALID_LEN {
                     return None;
                 }
@@ -45,14 +51,30 @@ impl HtmlInputGuard {
                 *s = s[start..end].to_string();
             }
             Cow::Borrowed(s) => {
-                // 零拷贝trim：仅计算有效长度，不生成新字符串，无内存分配
-                let start = s.bytes().position(|b| !b.is_ascii_whitespace() && !b.is_ascii_control()).unwrap_or(0);
-                let end = s.bytes().rposition(|b| !b.is_ascii_whitespace() && !b.is_ascii_control()).map_or(0, |p| p + 1);
-                
+                let start = s
+                    .bytes()
+                    .position(|b| !b.is_ascii_whitespace() && !b.is_ascii_control())
+                    .unwrap_or(0);
+                let end = s
+                    .bytes()
+                    .rposition(|b| !b.is_ascii_whitespace() && !b.is_ascii_control())
+                    .map_or(0, |p| p + 1);
+
                 if start >= end || end - start < Self::MIN_VALID_LEN {
                     return None;
                 }
+
+                html = Cow::Borrowed(&s[start..end]);
             }
+              // Cow::Borrowed(s) => {
+              //     // 零拷贝trim：仅计算有效长度，不生成新字符串，无内存分配
+              //     let start = s.bytes().position(|b| !b.is_ascii_whitespace() && !b.is_ascii_control()).unwrap_or(0);
+              //     let end = s.bytes().rposition(|b| !b.is_ascii_whitespace() && !b.is_ascii_control()).map_or(0, |p| p + 1);
+
+              //     if start >= end || end - start < Self::MIN_VALID_LEN {
+              //         return None;
+              //     }
+              // }
         }
 
         // 4. 通过所有校验，安全返回

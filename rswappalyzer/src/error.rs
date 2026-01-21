@@ -14,10 +14,10 @@ use url::ParseError as UrlParseError;
 /// 全局错误枚举
 /// 封装所有业务场景的错误类型，支持From转换和结构化错误信息
 #[derive(Error, Debug)]
-pub enum RswappalyzerError {
+pub enum RswError {
     /// 内核核心错误（透传）
     #[error("Core error: {0}")]
-    Core(#[from] CoreError),
+    CoreError(#[from] CoreError),
 
     // ===================== 基础IO/解析错误 =====================
     /// IO操作失败（文件读写/网络IO等）
@@ -98,4 +98,4 @@ pub enum RswappalyzerError {
 
 /// 全局Result类型别名
 /// 统一使用RswappalyzerError作为错误类型
-pub type RswResult<T> = Result<T, RswappalyzerError>;
+pub type RswResult<T> = Result<T, RswError>;

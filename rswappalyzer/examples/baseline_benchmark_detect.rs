@@ -10,7 +10,7 @@
 //! cargo run --example baseline_benchmark_detect --features embedded-rules --release
 
 use log::warn;
-use rswappalyzer::{DetectResult, RuleConfig, detector, init_global_detector};
+use rswappalyzer::{DetectResult, RuleConfig, TechDetector};
 use std::time::Instant;
 
 // 统一测试数据源
@@ -37,7 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ========== 1. 全局检测器初始化 ==========
     // 与生产代码1:1对齐，使用默认配置，全局唯一实例
     let rule_config = RuleConfig::default();
-    init_global_detector(rule_config).await?;
+    let detector = TechDetector::new(rule_config).await?;
 
     // 输出测试基础信息
     println!("✅ rswappalyzer 指纹检测 压力测试开始");
@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 关键优化：消除初始化影响（懒加载/正则缓存/内存预分配/CPU分支预测）
     println!("🔥 执行预热调用，消除初始化性能干扰...");
     for _ in 0..BENCHMARK_WARM_UP_CALL {
-        let _ = detector::detect(&test_headers, test_urls, test_body_bytes).await;
+        let _ = detector.detect(&test_headers, test_urls, test_body_bytes);
     }
     println!("✅ 预热完成，开始正式异步压测...");
     println!("------------------------------------------------------------------------------");
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     for index in 0..BENCHMARK_TOTAL_CALL {
         // 执行指纹检测并处理错误
-        let _ = detect_with_error_handling(&test_headers, test_urls, test_body_bytes).await;
+        let _ = detect_with_error_handling(&detector, &test_headers, test_urls, test_body_bytes).await;
 
         // 按步长打印进度，避免高频IO导致压测数据失真
         if (index + 1) % BENCHMARK_PROGRESS_STEP == 0 {
@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     for _ in 0..BASE_TEST_SAMPLE {
         let single_start = Instant::now();
-        let _ = detect_with_error_handling(&test_headers, test_urls, test_body_bytes).await;
+        let _ = detect_with_error_handling(&detector, &test_headers, test_urls, test_body_bytes).await;
         let cost_ms = single_start.elapsed().as_secs_f64() * 1000.0;
         single_cost_list.push(cost_ms);
     }
@@ -138,11 +138,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// 3. 与生产代码逻辑对齐，保证压测真实性
 #[inline(always)]
 async fn detect_with_error_handling(
+    detector: &TechDetector,
     headers: &http::header::HeaderMap,
     urls: &[&str],
     body: &[u8],
 ) -> DetectResult {
-    match detector::detect(headers, urls, body).await {
+    match detector.detect(headers, urls, body) {
         Ok(techs) => techs,
         Err(e) => {
             warn!("❌ rswappalyzer识别失败: {}", e);

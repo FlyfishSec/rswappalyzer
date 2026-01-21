@@ -1,35 +1,31 @@
-//! Tech detector core module
-//! 技术检测器核心
-//! 核心职责：
-//! 1. 规则库加载与编译（内置/本地/远程规则）
-//! 2. 多维度技术检测（URL/Header/Cookie/HTML/Script/Meta）
-//! 3. 检测结果聚合与关联推导
-//! 4. 提供基础检测/带耗时统计/HashMap输入等多版本接口
+//! 技术检测器核心模块
+//! 
+//! 该模块是整个技术检测库的入口与核心封装层，负责：
+//! 1. 统一导出对外暴露的核心类型，隐藏内部实现细节；
+//! 2. 定义模块组织结构，遵循「最小暴露原则」；
+//! 3. 保证整个检测体系的设计一致性。
+//! 
+//! # 核心设计原则
+//! - **实例化设计**：完全基于实例化，无全局状态/单例，线程安全；
+//! - **接口内聚**：所有功能通过 `TechDetector` 实例方法暴露，接口统一；
+//! - **规范兼容**：错误类型、命名规范严格遵循 Rust API 设计指南；
+//! - **最小暴露**：仅导出必要的公共类型，内部实现逻辑完全封装。
 
-// 导出核心结构体和方法
-pub use self::constructor::TechDetector;
-pub use self::global_api::detect;
-#[cfg(debug_assertions)]
-pub use self::global_api::detect_log;
+// ==============================
+// 公共导出（遵循最小暴露原则）
+// 仅导出用户需直接使用的核心类型，隐藏内部实现
+// ==============================
+pub use self::tech_detector::TechDetector;          // 核心检测器类型（库的主入口）
+pub use crate::result::detect_result::Technology;   // 检测结果中的技术项类型
+pub use crate::{
+    DetectResult,  // 检测结果顶层类型
+    RuleConfig,    // 检测器配置类型
+    RuleOrigin,    // 规则来源枚举类型
+};
 
-// 子模块
-mod constructor;
-mod global_api;
-
-// 检测逻辑模块
-pub mod detection;
-// 输入适配模块
-pub mod adapters;
-
-pub mod global;
-//pub mod evidence_builder;
-
-// 导出核心接口
-pub use self::global::{init_global_detector, init_global_detector_with_rules};
-pub use crate::result::detect_result::Technology;
-pub use crate::{DetectResult, RuleConfig, RuleOrigin};
-
-// pub use self::global_api::{
-//     TechDetector,
-//     detect,
-// };
+// ==============================
+// 内部模块（按职责划分，封装实现细节）
+// ==============================
+mod tech_detector;               // 核心检测器实现（对外不可见）
+pub(crate) mod detection;        // 检测核心逻辑（仅 crate 内可见）
+pub mod adapters;                // 输入适配层（对外可见，用于扩展输入类型）

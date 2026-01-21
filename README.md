@@ -22,27 +22,73 @@ from an HTTP response using **rswappalyzer**.
 ```rust
 use reqwest::Client;
 use reqwest::header::HeaderMap;
-use rswappalyzer::detector;
+use rswappalyzer::{RuleConfig, TechDetector};
 use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // 1. Send HTTP request
+    // 1. Build rule configuration
+    // Use default configuration (recommended for most users)
+    let config = RuleConfig::default();
+
+    // load rules from a local file
+    // let mut config = RuleConfig::default();
+    // config.origin = RuleOrigin::LocalFile("/path/to/rules.json".to_string());
+
+    // ---------------------------------------------------------------------
+    // Remote rule configuration (optional)
+    // ---------------------------------------------------------------------
+
+    // Remote rule source
+    // This example uses the official WappalyzerGo fingerprint dataset
+    // as a standardized, community-maintained rule source.
+    //
+    // NOTE:
+    // - Remote rules will be downloaded and cached locally
+    // - Suitable for keeping rules up-to-date without bundling them into the binary
+    //
+    // const RULE_REMOTE_URL: &str =
+    //     "https://raw.githubusercontent.com/projectdiscovery/wappalyzergo/refs/heads/main/    fingerprints_data.json";
+    //
+    // let mut config = RuleConfig::remote_custom(
+    //     RULE_REMOTE_URL,             // Remote rule URL
+    //     Duration::from_secs(10),     // HTTP request timeout
+    //     RetryPolicy::Times(2),       // Retry policy (retry up to 2 times on failure)
+    // );
+
+    // ---------------------------------------------------------------------
+    // Optional configuration overrides
+    // ---------------------------------------------------------------------
+    // Disable remote rule update checks
+    // Useful for fully offline or deterministic environments
+    // config.options.check_update = false;
+    
+    // Specify a custom cache directory for downloaded rules
+    // Defaults to the library-managed cache location
+    // config.options.cache_dir = PathBuf::from("./custom_cache");
+
+    // 2. Create a technology detector instance
+    // The detector owns all compiled rule data and is safe to reuse
+    // across multiple requests.
+    let detector = TechDetector::new(config).await?;
+
+    // 3. Send HTTP request
     let client = Client::new();
     let url = "https://example.com";
-    let resp = client.get(url).send().await?;
+    let response = client.get(url).send().await?;
 
-    // 2. Extract headers and body
-    let headers: HeaderMap = resp.headers().clone();
-    let body = resp.bytes().await?;
+    // 4. Extract headers and response body
+    let headers: HeaderMap = response.headers().clone();
+    let body = response.bytes().await?;
 
-    // 3. Run technology detection
-    let result = detector::detect(&headers, &[url], body.as_ref()).await?;
+    // 5. Run technology detection
+    let result = detector.detect(&headers, &[url], body.as_ref())?;
 
-    // 4. Get detected technology list
+    // 6. Consume detection results
+    // Get detected technology names
     println!("Technologies: {:?}", result.tech_list());
 
-    // 5. Get full structured result as JSON
+    // Get full structured result as pretty-printed JSON
     println!("{}", result.to_json_pretty()?);
 
     Ok(())

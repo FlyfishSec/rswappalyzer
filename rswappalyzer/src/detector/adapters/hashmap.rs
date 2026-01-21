@@ -1,4 +1,4 @@
-use crate::DetectResult;
+use crate::{DetectResult, HeaderConverter};
 use crate::detector::TechDetector;
 use crate::error::RswResult;
 use http::header::{HeaderName, HeaderValue};
@@ -15,19 +15,19 @@ pub fn detect_with_hashmap(
     body: &[u8],
 ) -> RswResult<DetectResult> {
     // 转换为单值Header映射
-    let single_header_map = crate::utils::HeaderConverter::to_single_value(headers);
+    let single_header_map = HeaderConverter::to_single_value(headers);
     let mut header_map = HeaderMap::new();
 
     // 转换为标准HeaderMap
     for (key, value) in single_header_map {
         let header_name = HeaderName::from_bytes(key.as_bytes()).map_err(|e| {
-            crate::error::RswappalyzerError::InvalidInput(format!(
+            crate::error::RswError::InvalidInput(format!(
                 "Invalid header name: {}, error: {}",
                 key, e
             ))
         })?;
         let header_value = HeaderValue::from_str(&value).map_err(|e| {
-            crate::error::RswappalyzerError::InvalidInput(format!(
+            crate::error::RswError::InvalidInput(format!(
                 "Invalid header value: {}, error: {}",
                 value, e
             ))
@@ -40,7 +40,7 @@ pub fn detect_with_hashmap(
 }
 
 // 为TechDetector实现detect_with_hashmap方法
-impl crate::detector::TechDetector {
+impl TechDetector {
     #[inline(always)]
     pub fn detect_with_hashmap(
         &self,
@@ -48,6 +48,6 @@ impl crate::detector::TechDetector {
         urls: &[&str],
         body: &[u8],
     ) -> RswResult<DetectResult> {
-        crate::detector::adapters::hashmap::detect_with_hashmap(self, headers, urls, body)
+        detect_with_hashmap(self, headers, urls, body)
     }
 }

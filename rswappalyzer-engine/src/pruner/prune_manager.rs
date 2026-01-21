@@ -23,7 +23,7 @@ pub enum PruneMode {
     Debug,
 }
 
-/// 剪枝上下文（仅保留必要的生命周期，移除多余泛型）
+/// 剪枝上下文
 #[derive(Debug, Clone)]
 pub struct PruneContext<'a> {
     /// 剪枝作用域（URL/HTML/Script等）

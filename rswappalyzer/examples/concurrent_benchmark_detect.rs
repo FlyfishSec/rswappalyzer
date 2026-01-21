@@ -7,7 +7,7 @@
 //! 4. 贴近业务场景的测试数据，压测结果可直接反映生产性能
 
 use log::warn;
-use rswappalyzer::{DetectResult, RuleConfig, detector, init_global_detector};
+use rswappalyzer::{DetectResult, RuleConfig, TechDetector};
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Semaphore;
@@ -38,8 +38,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ========== 1. 全局检测器初始化 ==========
     // 显式初始化，禁用懒加载，贴合生产真实部署形态
     let rule_config = RuleConfig::default();
-    init_global_detector(rule_config).await?;
-    
+    let detector = TechDetector::new(rule_config).await?;
+    let detector_arc = Arc::new(detector);
+
     // 输出测试配置信息
     println!("✅ rswappalyzer 生产级高并发压测开始 | 显式全局初始化完成");
     println!(
@@ -71,10 +72,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let h = shared_headers.clone();
         let u = shared_urls.clone();
         let b = shared_body.clone();
-        
+        let detector_arc_clone = Arc::clone(&detector_arc);
+
         warmup_tasks.push(tokio::spawn(async move {
             let _ = permit;
-            let _ = detect_with_error_handling(&h, &u, &b).await;
+            let _ = detect_with_error_handling(&detector_arc_clone, &h, &u, &b).await;
         }));
     }
 
@@ -98,11 +100,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let headers = shared_headers.clone();
         let urls = shared_urls.clone();
         let body = shared_body.clone();
+        let detector_arc_clone = Arc::clone(&detector_arc);
 
         // 生成异步任务，由Tokio调度器管理
         task_handles.push(tokio::spawn(async move {
             let _permit_guard = permit; // 任务完成自动释放许可
-            let _result = detect_with_error_handling(&headers, &urls, &body).await;
+            let _result = detect_with_error_handling(&detector_arc_clone, &headers, &urls, &body).await;
         }));
     }
 
@@ -143,7 +146,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     for _ in 0..BASE_TEST_SAMPLE {
         let single_start = Instant::now();
-        let _ = detect_with_error_handling(&shared_headers, &shared_urls, &shared_body).await;
+        let detector_arc_clone = Arc::clone(&detector_arc);
+        let _ = detect_with_error_handling(&detector_arc_clone, &shared_headers, &shared_urls, &shared_body).await;
         let cost_ms = single_start.elapsed().as_secs_f64() * 1000.0;
         single_cost_list.push(cost_ms);
     }
@@ -172,11 +176,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// 3. 与生产代码1:1对齐，保证压测真实性
 #[inline(always)]
 async fn detect_with_error_handling(
+    detector: &TechDetector,
     headers: &Arc<http::header::HeaderMap>,
     urls: &Arc<&[&str]>,
     body: &Arc<&[u8]>,
 ) -> DetectResult {
-    match detector::detect(headers, urls, &body).await {
+    match detector.detect(headers, urls, &body) {
         Ok(techs) => techs,
         Err(e) => {
             warn!("❌ rswappalyzer识别失败: {}", e);

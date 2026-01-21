@@ -4,9 +4,9 @@
 //! 并封装了检测结果聚合、元数据填充等辅助能力。
 
 // 核心检测逻辑实现模块
-mod core;
-// 导出核心检测函数供外部使用
-pub use self::core::detect;
+pub mod core;
+// // 导出核心检测函数供外部使用
+// pub use self::core::detect;
 
 // 调试模式下导出带日志的检测函数（仅 debug 编译时生效）
 #[cfg(debug_assertions)]
