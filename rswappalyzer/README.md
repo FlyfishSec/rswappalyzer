@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // - Suitable for keeping rules up-to-date without bundling them into the binary
     //
     // const RULE_REMOTE_URL: &str =
-    //     "https://raw.githubusercontent.com/projectdiscovery/wappalyzergo/refs/heads/main/    fingerprints_data.json";
+    //     "https://raw.githubusercontent.com/projectdiscovery/wappalyzergo/refs/heads/main/fingerprints_data.json";
     //
     // let mut config = RuleConfig::remote_custom(
     //     RULE_REMOTE_URL,             // Remote rule URL
