@@ -127,7 +127,7 @@ pub fn detect_with_log(
 
     // 3. HTML处理阶段
     let (html_safe_str, script_src_combined, meta_tags, html_parse_cost, cost_lc) =
-        process_html(detector, body);
+        process_html(detector, body, headers);
     print_perf_log(
         "HTML parsing & extraction completed",
         html_parse_cost,
@@ -284,6 +284,7 @@ pub fn detect_with_log(
 fn process_html<'a>(
     _detector: &'a TechDetector,
     body: &'a [u8],
+    headers: &HeaderMap,
 ) -> (
     Cow<'a, str>,
     String,
@@ -292,7 +293,10 @@ fn process_html<'a>(
     Duration,
 ) {
     let start = Instant::now();
-    let html_str = String::from_utf8_lossy(body);
+    //let html_str = String::from_utf8_lossy(body);
+    // 编码转换
+    let html_str = convert_to_utf8(body, headers);
+
     let mut cost_lc = Duration::ZERO;
 
     let (html_safe_str, script_src_combined, meta_tags) = match HtmlInputGuard::guard(html_str) {

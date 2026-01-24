@@ -77,7 +77,10 @@ pub(crate) fn detect(
 
     // ========== 阶段2：HTML证据构建（核心生命周期修复） ==========
     // 将字节流转换为UTF-8字符串（非UTF-8时自动替换为替换字符）
-    let html_str = String::from_utf8_lossy(body);
+    // let html_str = String::from_utf8_lossy(body);
+    // 编码转换
+    let html_str = convert_to_utf8(body, headers);
+
     // HTML输入安全校验 + 提取核心信息
     let (html_safe_str, extract_result) = match HtmlInputGuard::guard(html_str) {
         Some(valid_html) => {

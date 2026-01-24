@@ -1,7 +1,7 @@
 //! 全局规则配置管理
 
-use std::hash::Hasher;
 use std::hash::Hash;
+use std::hash::Hasher;
 use std::{hash::DefaultHasher, path::PathBuf, time::Duration};
 
 /// 规则来源
@@ -42,6 +42,8 @@ pub struct RuleOptions {
     pub check_update: bool,
     /// 规则缓存目录（远程规则 / 构建产物等）
     pub cache_dir: PathBuf,
+    /// 可自定义缓存文件名
+    pub cache_file_name: Option<PathBuf>,
 }
 
 impl Default for RuleOptions {
@@ -49,6 +51,7 @@ impl Default for RuleOptions {
         Self {
             check_update: true,
             cache_dir: PathBuf::from(".cache/rswappalyzer"),
+            cache_file_name: None, // 默认不指定
         }
     }
 }
@@ -125,6 +128,10 @@ impl RuleConfig {
 
     /// 根据规则源生成缓存文件的完整路径（目录 + 文件名）
     pub fn get_cache_file_path(&self) -> PathBuf {
+        if let Some(ref file_name) = self.options.cache_file_name {
+            return self.options.cache_dir.join(file_name);
+        }
+
         let file_name = match &self.origin {
             RuleOrigin::Embedded => {
                 // 内置规则返回占位 PathBuf
@@ -185,6 +192,12 @@ impl CustomConfigBuilder {
 
     pub fn cache_dir(mut self, path: PathBuf) -> Self {
         self.config.options.cache_dir = path;
+        self
+    }
+
+    /// 链式api
+    pub fn cache_file_name<P: Into<PathBuf>>(mut self, file_name: P) -> Self {
+        self.config.options.cache_file_name = Some(file_name.into());
         self
     }
 

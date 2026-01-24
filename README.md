@@ -33,8 +33,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // load rules from a local file
     // let mut config = RuleConfig::default();
-    // config.origin = RuleOrigin::LocalFile("/path/to/rules.json".to_string());
-
+    // config.origin = RuleOrigin::LocalFile(std::path::PathBuf::from(
+    //     r"d:\rules\fp_rules.json",
+    // ));
+    
     // ---------------------------------------------------------------------
     // Remote rule configuration (optional)
     // ---------------------------------------------------------------------

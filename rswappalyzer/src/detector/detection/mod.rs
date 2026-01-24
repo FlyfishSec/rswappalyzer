@@ -8,6 +8,9 @@ pub mod core;
 // // 导出核心检测函数供外部使用
 // pub use self::core::detect;
 
+pub mod encoding;
+pub use encoding::convert_to_utf8;
+
 // 调试模式下导出带日志的检测函数（仅 debug 编译时生效）
 #[cfg(debug_assertions)]
 pub use self::with_log::detect_with_log;

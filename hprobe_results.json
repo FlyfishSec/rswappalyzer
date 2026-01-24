@@ -1,0 +1,16 @@
+[
+  {
+    "host": "192.168.10.1",
+    "scheme": "http",
+    "url": "http://192.168.10.1:80",
+    "port": 80,
+    "status_code": 200,
+    "title": "YR1901G",
+    "redirect_url": "http://192.168.10.1/",
+    "response_time_ms": 143,
+    "raw_header": "content-type: text/html;charset=UTF-8\ncontent-length: 978\nconnection: close\ncache-control: no-cache\n",
+    "web_server": null,
+    "content_type": "text/html;charset=UTF-8",
+    "content_length": 978
+  }
+]

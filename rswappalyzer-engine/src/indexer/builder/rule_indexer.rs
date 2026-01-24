@@ -1,6 +1,8 @@
 //! 规则索引器（主入口）：仅负责协调各模块，按顺序执行构建流程
 //! 核心：不处理具体的编译/ID转换逻辑，只做调度
 
+use std::path::Path;
+
 use crate::{
     builder::{
         id_filler::IdFiller, no_evidence_index::NoEvidenceIndexBuilder,
@@ -253,6 +255,10 @@ impl RuleIndexer {
 
     /// 加载分类映射
     pub fn load_category_map(json_path: &str) -> FxHashMap<u32, String> {
+        if !Path::new(json_path).exists() {
+            return FxHashMap::default();
+        }
+    
         let json_content = match std::fs::read_to_string(json_path) {
             Ok(c) => c,
             Err(e) => {
