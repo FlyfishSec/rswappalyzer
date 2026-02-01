@@ -6,7 +6,7 @@ use rswappalyzer_engine::{RuleLibrary, RuleProcessor};
 use std::fs;
 use std::path::Path;
 
-use crate::error::{RswResult, RswError};
+use crate::error::{RswError, RswResult};
 use crate::{RuleCacheManager, RuleConfig, RuleOrigin};
 
 /// 规则加载器
@@ -57,11 +57,12 @@ impl RuleLoader {
         let cache_path = config.get_cache_file_path();
         match RuleCacheManager::load_from_cache(config) {
             Ok(rule_lib) => {
-                debug!(
-                    "Loaded rules from cache successfully: {}",
-                    cache_path.display()
-                );
+                debug!("Loaded rules from cache: {}", cache_path.display());
                 Some(rule_lib)
+            }
+            Err(e) if e.is_not_found() => {
+                debug!("Cache not found: {}", cache_path.display());
+                None
             }
             Err(e) => {
                 warn!(
@@ -72,6 +73,23 @@ impl RuleLoader {
                 None
             }
         }
+        // match RuleCacheManager::load_from_cache(config) {
+        //     Ok(rule_lib) => {
+        //         debug!(
+        //             "Loaded rules from cache successfully: {}",
+        //             cache_path.display()
+        //         );
+        //         Some(rule_lib)
+        //     }
+        //     Err(e) => {
+        //         warn!(
+        //             "Failed to load rules from cache: {} - {}",
+        //             cache_path.display(),
+        //             e
+        //         );
+        //         None
+        //     }
+        // }
     }
 
     /// 通用缓存保存逻辑（本地/远程规则复用）
@@ -101,18 +119,19 @@ impl RuleLoader {
         warn!("Local cache not found, reading raw rule file: {:?}", path);
 
         // 2. 读取并解析原始规则文件
-        let raw_content = fs::read_to_string(path).map_err(|e| {
-            RswError::RuleLoadError(format!(
-                "Failed to read raw rule file: {} - {}",
-                path.display(),
-                e
-            ))
-        })?;
+        // let raw_content = fs::read_to_string(path).map_err(|e| {
+        //     RswError::RuleLoadError(format!(
+        //         "Failed to read raw rule file: {} - {}",
+        //         path.display(),
+        //         e
+        //     ))
+        // })?;
+        let raw_content = fs::read_to_string(path).map_err(RswError::IoError)?;
 
         let parser = WappalyzerParser::default();
-        let raw_lib = parser.parse_to_rule_lib(&raw_content).map_err(|e| {
-            RswError::RuleLoadError(format!("Failed to parse rules: {}", e))
-        })?;
+        let raw_lib = parser
+            .parse_to_rule_lib(&raw_content)
+            .map_err(|e| RswError::RuleLoadError(format!("Failed to parse rules: {}", e)))?;
 
         // 3. 清洗拆分规则并缓存
         let cleaned_lib = self.rule_processor.clean_and_split_rules(&raw_lib)?;
@@ -161,9 +180,7 @@ impl RuleLoader {
         let client = Client::builder()
             .timeout(remote_opts.timeout)
             .build()
-            .map_err(|e| {
-                RswError::RuleLoadError(format!("Failed to build HTTP client: {}", e))
-            })?;
+            .map_err(|e| RswError::RuleLoadError(format!("Failed to build HTTP client: {}", e)))?;
 
         // 5. 根据check_update决定是否执行ETag检测
         let cleaned_rule_lib = if config.options.check_update {
@@ -196,9 +213,7 @@ impl RuleLoader {
                     if use_local_cache {
                         debug!("Rule library is up-to-date, using local cache");
                         self.load_from_cache_unified(config).await.ok_or_else(|| {
-                            RswError::RuleLoadError(
-                                "Local cache missing but ETag matches".into(),
-                            )
+                            RswError::RuleLoadError("Local cache missing but ETag matches".into())
                         })?
                     } else {
                         debug!("New rule library detected, fetching remote rules");
