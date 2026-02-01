@@ -6,7 +6,7 @@ use http::header::ToStrError;
 use rswappalyzer_engine::CoreError;
 use serde_json::Error as SerdeJsonError;
 use std::{
-    io::Error as IoError,
+    io::{Error as IoError, ErrorKind},
     time::SystemTimeError,
 };
 use url::ParseError as UrlParseError;
@@ -80,12 +80,6 @@ pub enum RswError {
     #[error("JSON parse/serialize failed: {0}")]
     JsonError(#[from] SerdeJsonError),
 
-    // #[error("MessagePack decode failed: {0}")]
-    // MsgPackDecode(#[from] decode::Error),
-    // 
-    // #[error("MessagePack encode failed: {0}")]
-    // MsgPackEncode(#[from] encode::Error),
-
     // ===================== 异步/特性相关错误 =====================
     /// 异步任务执行失败（任务panic/取消/超时等）
     #[error("Async task execution failed: {0}")]
@@ -94,6 +88,18 @@ pub enum RswError {
     /// 功能特性未开启（如remote-loader未启用）
     #[error("Feature disabled: {0}")]
     FeatureDisabled(String)
+}
+
+// 新增：实现 is_not_found 方法
+impl RswError {
+    /// 判断错误是否是文件/资源未找到类型
+    pub fn is_not_found(&self) -> bool {
+        // 匹配 IoError 且 ErrorKind 为 NotFound
+        matches!(
+            self,
+            RswError::IoError(e) if e.kind() == ErrorKind::NotFound
+        )
+    }
 }
 
 /// 全局Result类型别名
