@@ -33,7 +33,7 @@ pub use self::error::{RswResult, RswError};
 
 // 配置模块核心结构体与构建器
 pub use crate::config::rule::{
-    CustomConfigBuilder, RetryPolicy, RuleConfig, RuleOptions, RuleOrigin,
+    CustomConfigBuilder, RetryPolicy, RuleConfig, RuleOptions, RuleOrigin, RuleSource, RuleStage
 };
 
 // 规则模块核心接口与数据结构
