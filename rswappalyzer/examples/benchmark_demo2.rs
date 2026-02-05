@@ -27,7 +27,7 @@ impl TimeStat {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ===== 1. 初始化检测器 =====
     let config = RuleConfig {
-        origin: RuleOrigin::Embedded,
+        origin: RuleOrigin::embedded(),
         ..RuleConfig::default()
     };
     let detector = TechDetector::with_embedded_rules(config)?;
