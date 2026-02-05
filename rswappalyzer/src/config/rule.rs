@@ -5,12 +5,65 @@ use std::hash::Hasher;
 use std::{hash::DefaultHasher, path::PathBuf, time::Duration};
 
 /// 规则来源
-#[derive(Debug, Clone)]
-pub enum RuleOrigin {
+#[derive(Debug, Clone, PartialEq)]
+pub enum RuleSource {
     Embedded,             // 内置规则（编译期 embed）
     LocalFile(PathBuf),   // 本地文件规则（运行时）
     RemoteOfficial,       // 官方远程规则源
     RemoteCustom(String), // 自定义远程 URL（官方格式要求）
+}
+
+/// 规则阶段（明确区分原始/已编译状态）
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuleStage {
+    Raw,        // 原始规则（需要解析 / 编译）
+    Compiled,   // 已编译产物（可直接使用）
+}
+
+/// 规则来源+阶段（核心抽象：组合语义）
+#[derive(Debug, Clone)]
+pub struct RuleOrigin {
+    pub source: RuleSource,
+    pub stage: RuleStage,
+}
+
+impl RuleOrigin {
+    // 向后兼容：提供原有 RuleOrigin 变体的构造方法
+    pub fn embedded() -> Self {
+        Self {
+            source: RuleSource::Embedded,
+            stage: RuleStage::Compiled, // 内置规则默认是已编译状态
+        }
+    }
+
+    pub fn local_file(path: impl Into<PathBuf>) -> Self {
+        Self {
+            source: RuleSource::LocalFile(path.into()),
+            stage: RuleStage::Raw, // 本地文件默认是原始规则
+        }
+    }
+
+    pub fn remote_official() -> Self {
+        Self {
+            source: RuleSource::RemoteOfficial,
+            stage: RuleStage::Raw, // 远程规则默认是原始规则
+        }
+    }
+
+    pub fn remote_custom(url: impl Into<String>) -> Self {
+        Self {
+            source: RuleSource::RemoteCustom(url.into()),
+            stage: RuleStage::Raw, // 自定义远程规则默认是原始规则
+        }
+    }
+
+    // 显式指定本地已编译文件的构造方法
+    pub fn local_compiled_file(path: impl Into<PathBuf>) -> Self {
+        Self {
+            source: RuleSource::LocalFile(path.into()),
+            stage: RuleStage::Compiled,
+        }
+    }
 }
 
 /// 规则加载方式
@@ -68,7 +121,7 @@ pub struct RuleConfig {
 impl Default for RuleConfig {
     fn default() -> Self {
         Self {
-            origin: RuleOrigin::Embedded,
+            origin: RuleOrigin::embedded(), // 兼容原有默认逻辑
             load_method: RuleLoadMethod::Embedded,
             options: RuleOptions::default(),
             remote_options: None,
@@ -77,19 +130,34 @@ impl Default for RuleConfig {
 }
 
 impl RuleConfig {
-    /// 内置规则
+    /// 内置规则（向后兼容）
     pub fn embedded() -> Self {
         Self::default()
     }
 
-    /// 本地规则文件（缓存目录仍指向配置的目录，仅规则源为本地文件）
+    /// 本地规则文件
     pub fn local_file(path: impl Into<PathBuf>) -> Self {
         let path_buf = path.into();
         let cache_dir = RuleOptions::default().cache_dir;
         Self {
-            origin: RuleOrigin::LocalFile(path_buf),
+            origin: RuleOrigin::local_file(path_buf),
             load_method: RuleLoadMethod::CacheDir(cache_dir),
             options: RuleOptions::default(),
+            remote_options: None,
+        }
+    }
+
+    /// 本地已编译规则文件
+    pub fn local_compiled_file(path: impl Into<PathBuf>) -> Self {
+        let path_buf = path.into();
+        let cache_dir = RuleOptions::default().cache_dir;
+        Self {
+            origin: RuleOrigin::local_compiled_file(path_buf),
+            load_method: RuleLoadMethod::CacheDir(cache_dir),
+            options: RuleOptions {
+                check_update: false, // 已编译文件无需检查更新
+                ..RuleOptions::default()
+            },
             remote_options: None,
         }
     }
@@ -99,7 +167,7 @@ impl RuleConfig {
         let url = "https://official.source/rules.json".to_string();
         let cache_dir = RuleOptions::default().cache_dir;
         Self {
-            origin: RuleOrigin::RemoteOfficial,
+            origin: RuleOrigin::remote_official(),
             load_method: RuleLoadMethod::CacheDir(cache_dir.clone()),
             options: RuleOptions::default(),
             remote_options: Some(RemoteOptions {
@@ -115,7 +183,7 @@ impl RuleConfig {
         let url = url.into();
         let cache_dir = RuleOptions::default().cache_dir;
         Self {
-            origin: RuleOrigin::RemoteCustom(url.clone()),
+            origin: RuleOrigin::remote_custom(url.clone()),
             load_method: RuleLoadMethod::CacheDir(cache_dir.clone()),
             options: RuleOptions::default(),
             remote_options: Some(RemoteOptions {
@@ -132,20 +200,22 @@ impl RuleConfig {
             return self.options.cache_dir.join(file_name);
         }
 
-        let file_name = match &self.origin {
-            RuleOrigin::Embedded => {
+        let file_name = match &self.origin.source {
+            RuleSource::Embedded => {
                 // 内置规则返回占位 PathBuf
                 PathBuf::from("embedded_rules_unsupported.json")
             }
-            RuleOrigin::LocalFile(_) => {
-                // 统一返回 PathBuf（解决类型不匹配）
-                PathBuf::from("rswappalyzer_rules_cache.json")
+            RuleSource::LocalFile(_) => {
+                // 区分原始/编译文件的默认命名
+                match self.origin.stage {
+                    RuleStage::Raw => PathBuf::from("rswappalyzer_rules_cache.json"),
+                    RuleStage::Compiled => PathBuf::from("rswappalyzer_compiled_rules.json"),
+                }
             }
-            RuleOrigin::RemoteOfficial => {
-                // 统一返回 PathBuf
+            RuleSource::RemoteOfficial => {
                 PathBuf::from("official_rules.json")
             }
-            RuleOrigin::RemoteCustom(url) => {
+            RuleSource::RemoteCustom(url) => {
                 // 1. 生成固定哈希：相同 URL → 相同哈希值 → 相同文件名（实现覆盖）
                 let mut hasher = DefaultHasher::new();
                 url.hash(&mut hasher);
@@ -177,11 +247,11 @@ impl CustomConfigBuilder {
     /// 内部方法：根据 origin 决定 load_method
     fn apply_load_method(&mut self) {
         let cache_dir = self.config.options.cache_dir.clone();
-        self.config.load_method = match &self.config.origin {
-            RuleOrigin::Embedded => RuleLoadMethod::Embedded,
-            RuleOrigin::LocalFile(_) => RuleLoadMethod::CacheDir(cache_dir),
-            RuleOrigin::RemoteOfficial => RuleLoadMethod::CacheDir(cache_dir),
-            RuleOrigin::RemoteCustom(_) => RuleLoadMethod::CacheDir(cache_dir),
+        self.config.load_method = match &self.config.origin.source {
+            RuleSource::Embedded => RuleLoadMethod::Embedded,
+            RuleSource::LocalFile(_) => RuleLoadMethod::CacheDir(cache_dir),
+            RuleSource::RemoteOfficial => RuleLoadMethod::CacheDir(cache_dir),
+            RuleSource::RemoteCustom(_) => RuleLoadMethod::CacheDir(cache_dir),
         };
     }
 
@@ -195,14 +265,29 @@ impl CustomConfigBuilder {
         self
     }
 
-    /// 链式api
+    /// 链式api：设置缓存文件名
     pub fn cache_file_name<P: Into<PathBuf>>(mut self, file_name: P) -> Self {
         self.config.options.cache_file_name = Some(file_name.into());
         self
     }
 
+    /// 链式api：设置规则来源
     pub fn origin(mut self, origin: RuleOrigin) -> Self {
         self.config.origin = origin;
+        self.apply_load_method();
+        self
+    }
+
+    /// 显式设置规则阶段
+    pub fn stage(mut self, stage: RuleStage) -> Self {
+        self.config.origin.stage = stage;
+        self
+    }
+
+    /// 快速设置本地已编译文件
+    pub fn local_compiled_file(mut self, path: impl Into<PathBuf>) -> Self {
+        self.config.origin = RuleOrigin::local_compiled_file(path);
+        self.config.options.check_update = false;
         self.apply_load_method();
         self
     }
