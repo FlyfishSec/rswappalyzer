@@ -41,6 +41,10 @@ pub enum RswError {
     SystemTimeError(#[from] SystemTimeError),
 
     // ===================== 规则相关错误 =====================
+    /// 规则配置错误
+    #[error("Rule config error: {0}")]
+    RuleConfigError(String),
+
     /// 规则加载失败（本地/远程加载/缓存读取等）
     #[error("Rule load failed: {0}")]
     RuleLoadError(String),
