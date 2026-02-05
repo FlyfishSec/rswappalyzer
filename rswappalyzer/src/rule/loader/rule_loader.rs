@@ -1,13 +1,14 @@
 use log::{debug, warn};
 #[cfg(feature = "remote-loader")]
 use reqwest::Client;
+use rswappalyzer_engine::compiled::CompiledBundle;
 use rswappalyzer_engine::source::WappalyzerParser;
 use rswappalyzer_engine::{RuleLibrary, RuleProcessor};
 use std::fs;
 use std::path::Path;
 
 use crate::error::{RswError, RswResult};
-use crate::{RuleCacheManager, RuleConfig, RuleOrigin};
+use crate::{RuleCacheManager, RuleConfig, RuleSource, RuleStage};
 
 /// 规则加载器
 /// 核心职责：根据不同规则源（内置/本地/远程）加载并处理Wappalyzer规则库
@@ -40,13 +41,53 @@ impl RuleLoader {
     /// - config: 规则配置
     /// 返回：加载完成的规则库 | 加载错误
     pub async fn load(&self, config: &RuleConfig) -> RswResult<RuleLibrary> {
-        match &config.origin {
-            RuleOrigin::Embedded => self.load_embedded(),
-            RuleOrigin::LocalFile(path) => self.load_local_file(config, path).await,
-            RuleOrigin::RemoteOfficial | RuleOrigin::RemoteCustom(_) => {
+        match (&config.origin.source, config.origin.stage) {
+            // 内置规则：直接返回（忽略阶段）
+            (RuleSource::Embedded, _) => self.load_embedded(),
+
+            // 本地文件 + Raw阶段：解析>缓存流程
+            (RuleSource::LocalFile(path), RuleStage::Raw) => {
+                self.load_local_file(config, path).await
+            }
+
+            // 本地文件 + Compiled阶段：直接加载已编译规则，不缓存
+            (RuleSource::LocalFile(_), RuleStage::Compiled) => Err(RswError::RuleConfigError(
+                "Compiled rules are not supported in the current loading stage.".into(),
+            )),
+
+            // 远程规则：仅支持Raw阶段（Compiled阶段返回错误）
+            (RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_), RuleStage::Raw) => {
                 self.load_remote_rules(config).await
             }
+
+            // 远程规则指定Compiled阶段：非法配置
+            (RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_), RuleStage::Compiled) => {
+                Err(RswError::RuleConfigError(
+                    "Remote rules do not support Compiled stage, use Raw stage instead".into(),
+                ))
+            }
         }
+    }
+
+    /// 加载已编译规则文件（直接读取，不解析/不缓存）
+    /// 参数：
+    /// - path: 已编译规则文件路径
+    /// 返回：(已编译包, 规则索引) | 加载错误
+    pub async fn load_compiled_bundle(&self, path: &Path) -> RswResult<CompiledBundle> {
+        debug!("Loading precompiled rules from: {}", path.display());
+
+        // 1. 读取已编译规则文件
+        let raw_content = fs::read_to_string(path).map_err(|e| RswError::IoError(e))?;
+
+        // 2. 反序列化为已编译包
+        let compiled_bundle: CompiledBundle = serde_json::from_str(&raw_content).map_err(|e| {
+            RswError::RuleLoadError(format!("Failed to parse compiled rules: {}", e))
+        })?;
+
+        // 已编译规则不写入缓存
+        debug!("Compiled rules loaded successfully, skip cache write");
+
+        Ok(compiled_bundle)
     }
 
     /// 通用缓存加载逻辑（本地/远程规则复用）
@@ -126,6 +167,7 @@ impl RuleLoader {
         //         e
         //     ))
         // })?;
+        debug!("Loading raw local rules from: {}", path.display());
         let raw_content = fs::read_to_string(path).map_err(RswError::IoError)?;
 
         let parser = WappalyzerParser::default();
