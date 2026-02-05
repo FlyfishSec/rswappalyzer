@@ -41,13 +41,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // ========== 2. 初始化嵌入式规则检测器 ==========
-    // 配置嵌入式规则源（使用编译期固化的规则库）
+    // 配置嵌入式规则源
     let rule_config = RuleConfig {
-        origin: RuleOrigin::Embedded,
+        origin: RuleOrigin::embedded(),
         ..RuleConfig::default()
     };
     
-    // 初始化检测器（嵌入式规则无需异步加载）
+    // 初始化检测器
     let detector = TechDetector::with_embedded_rules(rule_config)?;
     println!("✅ 指纹检测器初始化完成 | 使用内置规则库");
 
