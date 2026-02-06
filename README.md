@@ -83,6 +83,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //     // Build the final configuration
     //     .build();
 
+    // 1.6.1 Build a detector directly from cached compiled rule bytes
+    // let compiled_bytes = fs::read("./compiled_rules.bin").unwrap();
+    // 1.6.2 Create an empty rule configuration
+    // (when using raw bytes, the config only keeps metadata)
+    // let config = RuleConfig::empty();
+    // 1.6.3 Construct the detector from compiled rule bytes
+    // let detector = TechDetector::from_compiled_bytes(&compiled_bytes, config).unwrap();
+
+    // 1.7.1 Read cached rule bytes from disk
+    // let cached_rule_bytes = fs::read("./.cache/rswappalyzer/rswappalyzer_rules_cache.json").unwrap();
+    // 1.7.2 Create an empty rule configuration
+    // (no actual rule source is required when loading from bytes)
+    // let config = RuleConfig::empty();
+    // 1.7.3 Build the detector directly from cached rule bytes
+    // let detector = TechDetector::from_cached_bytes(&cached_rule_bytes, config).unwrap();
+
     // 2. Create a technology detector instance
     // The detector owns all compiled rule data and is safe to reuse
     // across multiple requests.
