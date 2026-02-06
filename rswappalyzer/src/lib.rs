@@ -60,29 +60,29 @@ pub use crate::detector::{TechDetector};
 #[allow(dead_code)]
 #[allow(rust_analyzer::unresolved_env)] // 忽略OUT_DIR未解析提示
 pub mod rswappalyzer_rules {
-    use super::*;
-    use log::error;
-    use lz4_flex::decompress_size_prepended;
+    // use super::*;
+    // use log::error;
+    // use lz4_flex::decompress_size_prepended;
     use once_cell::sync::Lazy;
     use rswappalyzer_engine::{compiled::CompiledBundle};
     use std::sync::Arc;
 
-    /// LZ4解压缩封装函数
-    /// 功能：
-    /// 1. 适配build.rs的压缩规则（size-prepended格式）
-    /// 2. 统一错误处理，补充上下文信息
-    /// 3. 日志友好的错误提示
-    /// 参数：bytes - 压缩后的LZ4字节数组
-    /// 返回：解压缩后的字节数组 | 错误（含详细上下文）
-    fn lz4_decompress(bytes: &[u8]) -> Result<Vec<u8>, RswError> {
-        decompress_size_prepended(bytes).map_err(|e| {
-            RswError::RuleLoadError(format!(
-                "Failed to decompress rule library with LZ4: {:?}, compressed size: {} bytes",
-                e,
-                bytes.len()
-            ))
-        })
-    }
+    // /// LZ4解压缩封装函数
+    // /// 功能：
+    // /// 1. 适配build.rs的压缩规则（size-prepended格式）
+    // /// 2. 统一错误处理，补充上下文信息
+    // /// 3. 日志友好的错误提示
+    // /// 参数：bytes - 压缩后的LZ4字节数组
+    // /// 返回：解压缩后的字节数组 | 错误（含详细上下文）
+    // fn lz4_decompress(bytes: &[u8]) -> Result<Vec<u8>, RswError> {
+    //     decompress_size_prepended(bytes).map_err(|e| {
+    //         RswError::RuleLoadError(format!(
+    //             "Failed to decompress rule library with LZ4: {:?}, compressed size: {} bytes",
+    //             e,
+    //             bytes.len()
+    //         ))
+    //     })
+    // }
 
     /// 编译期嵌入的压缩规则库
     /// 说明：
@@ -90,8 +90,11 @@ pub mod rswappalyzer_rules {
     /// - build.rs注入COMPILED_BUNDLE_FILENAME环境变量
     /// - OUT_DIR为编译输出目录，由Rust编译器自动设置
     #[allow(dead_code)]
-    static COMPILED_BUNDLE_COMPRESSED: &[u8] =
+    static COMPILED_BUNDLE: &[u8] =
         include_bytes!(concat!(env!("OUT_DIR"), "/", env!("COMPILED_BUNDLE_FILENAME")));
+    // #[allow(dead_code)]
+    // static COMPILED_BUNDLE_COMPRESSED: &[u8] =
+    //     include_bytes!(concat!(env!("OUT_DIR"), "/", env!("COMPILED_BUNDLE_FILENAME")));
 
     /// 全局懒加载的编译后规则库单例
     /// 设计：
@@ -99,29 +102,29 @@ pub mod rswappalyzer_rules {
     /// 2. Arc：多线程共享，无拷贝开销
     /// 3. 严格错误处理：初始化失败时panic，确保核心功能可用
     pub static EMBEDDED_COMPILED_BUNDLE: Lazy<Arc<CompiledBundle>> = Lazy::new(|| {
-        // 步骤1：LZ4解压缩
-        let decompressed = lz4_decompress(COMPILED_BUNDLE_COMPRESSED).unwrap_or_else(|e| {
-            error!(
-                "Failed to decompress embedded rule library: error = {:?}, compressed_size = {}",
-                e,
-                COMPILED_BUNDLE_COMPRESSED.len()
-            );
-            panic!(
-                "Embedded rule library decompression failed. \
-         This indicates a build-time error. Please rebuild the project."
-            );
-        });
+        // // 步骤1：LZ4解压缩
+        // let decompressed = lz4_decompress(COMPILED_BUNDLE_COMPRESSED).unwrap_or_else(|e| {
+        //     error!(
+        //         "Failed to decompress embedded rule library: error = {:?}, compressed_size = {}",
+        //         e,
+        //         COMPILED_BUNDLE_COMPRESSED.len()
+        //     );
+        //     panic!(
+        //         "Embedded rule library decompression failed. \
+        //  This indicates a build-time error. Please rebuild the project."
+        //     );
+        // });
 
         // 步骤2：JSON反序列化为CompiledRuleLibrary
-        let lib: CompiledBundle = serde_json::from_slice(&decompressed).unwrap_or_else(|e| {
+        let lib: CompiledBundle = serde_json::from_slice(&COMPILED_BUNDLE).unwrap_or_else(|e| {
             eprintln!(
                 "Fatal error: Failed to deserialize embedded rule library - {:?}",
                 e
             );
-            eprintln!(
-                "Debug info: Decompressed rule library size: {} bytes",
-                decompressed.len()
-            );
+            // eprintln!(
+            //     "Debug info: Decompressed rule library size: {} bytes",
+            //     decompressed.len()
+            // );
             panic!(
                 "Failed to load embedded rule library. \
      The embedded rules appear to be corrupted or incompatible. \
