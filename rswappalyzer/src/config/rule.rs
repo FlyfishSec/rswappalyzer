@@ -18,6 +18,7 @@ pub enum RuleSource {
 pub enum RuleStage {
     Raw,        // 原始规则（需要解析 / 编译）
     Compiled,   // 已编译产物（可直接使用）
+    Cached,     // 缓存的规则
 }
 
 /// 规则来源+阶段（核心抽象：组合语义）
@@ -62,6 +63,14 @@ impl RuleOrigin {
         Self {
             source: RuleSource::LocalFile(path.into()),
             stage: RuleStage::Compiled,
+        }
+    }
+
+    // 本地缓存规则文件专属构造器（显式指定 Cached 阶段）
+    pub fn local_cached_file(path: impl Into<PathBuf>) -> Self {
+        Self {
+            source: RuleSource::LocalFile(path.into()),
+            stage: RuleStage::Cached, // 明确标记为缓存阶段
         }
     }
 }
@@ -130,7 +139,20 @@ impl Default for RuleConfig {
 }
 
 impl RuleConfig {
-    /// 内置规则（向后兼容）
+    /// 构建空配置（用于字节传入场景，仅记录元信息）
+    pub fn empty() -> Self {
+        Self {
+            origin: RuleOrigin::embedded(), // 标记为嵌入式（仅元信息）
+            load_method: RuleLoadMethod::Embedded,
+            options: RuleOptions {
+                check_update: false, // 字节规则无需更新
+                ..RuleOptions::default()
+            },
+            remote_options: None,
+        }
+    }
+
+    /// 内置规则
     pub fn embedded() -> Self {
         Self::default()
     }
@@ -156,6 +178,20 @@ impl RuleConfig {
             load_method: RuleLoadMethod::CacheDir(cache_dir),
             options: RuleOptions {
                 check_update: false, // 已编译文件无需检查更新
+                ..RuleOptions::default()
+            },
+            remote_options: None,
+        }
+    }
+
+    pub fn local_cached_file(path: impl Into<PathBuf>) -> Self {
+        let path_buf = path.into();
+        let cache_dir = RuleOptions::default().cache_dir;
+        Self {
+            origin: RuleOrigin::local_cached_file(path_buf),
+            load_method: RuleLoadMethod::CacheDir(cache_dir),
+            options: RuleOptions {
+                check_update: false, // 缓存文件无需检查更新（框架生成的静态文件）
                 ..RuleOptions::default()
             },
             remote_options: None,
@@ -209,7 +245,8 @@ impl RuleConfig {
                 // 区分原始/编译文件的默认命名
                 match self.origin.stage {
                     RuleStage::Raw => PathBuf::from("rswappalyzer_rules_cache.json"),
-                    RuleStage::Compiled => PathBuf::from("rswappalyzer_compiled_rules.json"),
+                    RuleStage::Compiled => PathBuf::from("compiled_rules_unsupported.json"),
+                    RuleStage::Cached => PathBuf::from("cached_rules_unsupported.json"), // 占位文件名（无需缓存）
                 }
             }
             RuleSource::RemoteOfficial => {
@@ -287,6 +324,14 @@ impl CustomConfigBuilder {
     /// 快速设置本地已编译文件
     pub fn local_compiled_file(mut self, path: impl Into<PathBuf>) -> Self {
         self.config.origin = RuleOrigin::local_compiled_file(path);
+        self.config.options.check_update = false;
+        self.apply_load_method();
+        self
+    }
+
+    // 快速设置本地缓存规则文件
+    pub fn local_cached_file(mut self, path: impl Into<PathBuf>) -> Self {
+        self.config.origin = RuleOrigin::local_cached_file(path);
         self.config.options.check_update = false;
         self.apply_load_method();
         self
