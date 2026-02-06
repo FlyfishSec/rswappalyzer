@@ -22,50 +22,82 @@ from an HTTP response using **rswappalyzer**.
 ```rust
 use reqwest::Client;
 use reqwest::header::HeaderMap;
-use rswappalyzer::{RuleConfig, TechDetector};
-use std::error::Error;
+use rswappalyzer::{CustomConfigBuilder, RetryPolicy, RuleConfig, RuleOrigin, TechDetector, config::rule::RemoteOptions};
+use std::{error::Error, path::PathBuf, time::Duration};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // 1. Build rule configuration
     // Use default configuration (recommended for most users)
+    // Enable in Cargo.toml: rswappalyzer = { version = "0.3", features = ["embedded-rules"] }
     let config = RuleConfig::default();
 
-    // load rules from a local file
+    // 1.1 load raw rules from a local file
     // let mut config = RuleConfig::default();
-    // config.origin = RuleOrigin::LocalFile("/path/to/rules.json".to_string());
+    // config.origin = RuleOrigin::local_file("/path/to/rules.json".to_string());
 
-    // ---------------------------------------------------------------------
-    // Remote rule configuration (optional)
-    // ---------------------------------------------------------------------
+    // 1.2 Local compiled Rule File
+    // --------------------------
+    // let config = RuleConfig {
+    //     origin: RuleOrigin::local_compiled_file("/path/to/compiled_rules.bin"),
+    //     ..RuleConfig::default()
+    // };
 
-    // Remote rule source
-    // This example uses the official WappalyzerGo fingerprint dataset
-    // as a standardized, community-maintained rule source.
-    //
-    // NOTE:
-    // - Remote rules will be downloaded and cached locally
-    // - Suitable for keeping rules up-to-date without bundling them into the binary
-    //
+    // 1.3 Remote Custom Rules (auto-cached)
+    // --------------------------
     // const RULE_REMOTE_URL: &str =
     //     "https://raw.githubusercontent.com/projectdiscovery/wappalyzergo/refs/heads/main/fingerprints_data.json";
-    //
-    // let mut config = RuleConfig::remote_custom(
-    //     RULE_REMOTE_URL,             // Remote rule URL
-    //     Duration::from_secs(10),     // HTTP request timeout
-    //     RetryPolicy::Times(2),       // Retry policy (retry up to 2 times on failure)
-    // );
+    // let mut config = RuleConfig {
+    //     origin: RuleOrigin::remote_custom(RULE_REMOTE_URL),
+    //     ..RuleConfig::default()
+    // };
 
-    // ---------------------------------------------------------------------
-    // Optional configuration overrides
+    // 1.4 Custom Configuration Overrides (Optional)
     // ---------------------------------------------------------------------
     // Disable remote rule update checks
     // Useful for fully offline or deterministic environments
     // config.options.check_update = false;
-    
+
+    // HTTP timeout for remote rule downloads
+    // config.options.remote_timeout = Duration::from_secs(15);
+
+    // Retry policy for failed remote rule downloads
+    // config.options.retry_policy = rswappalyzer::RetryPolicy::Times(3);
+
     // Specify a custom cache directory for downloaded rules
     // Defaults to the library-managed cache location
     // config.options.cache_dir = PathBuf::from("./custom_cache");
+
+    // 1.5 Build a custom configuration example (chainable builder pattern)
+    // let custom_config = CustomConfigBuilder::new()
+    //     // Advanced option: remote rule download timeout (remote rules only)
+    //     .remote_options(RemoteOptions {
+    //         urls: vec!["https://your-rules-server.com/rules.json".to_string()],
+    //         timeout: Duration::from_secs(15), // remote rule download timeout (remote rules only)
+    //         retry: RetryPolicy::Times(3),     // number of retries for remote rule downloads
+    //     })
+    //     .cache_dir(PathBuf::from("./remote_cache"))
+    //     .cache_file_name("my_fp_rules.json")
+    //     // Advanced option: disable rule update checks
+    //     .check_update(false)
+    //     // Build the final configuration
+    //     .build();
+
+    // 1.6.1 Build a detector directly from cached compiled rule bytes
+    // let compiled_bytes = fs::read("./compiled_rules.bin").unwrap();
+    // 1.6.2 Create an empty rule configuration
+    // (when using raw bytes, the config only keeps metadata)
+    // let config = RuleConfig::empty();
+    // 1.6.3 Construct the detector from compiled rule bytes
+    // let detector = TechDetector::from_compiled_bytes(&compiled_bytes, config).unwrap();
+
+    // 1.7.1 Read cached rule bytes from disk
+    // let cached_rule_bytes = fs::read("./.cache/rswappalyzer/rswappalyzer_rules_cache.json").unwrap();
+    // 1.7.2 Create an empty rule configuration
+    // (no actual rule source is required when loading from bytes)
+    // let config = RuleConfig::empty();
+    // 1.7.3 Build the detector directly from cached rule bytes
+    // let detector = TechDetector::from_cached_bytes(&cached_rule_bytes, config).unwrap();
 
     // 2. Create a technology detector instance
     // The detector owns all compiled rule data and is safe to reuse
