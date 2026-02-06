@@ -71,7 +71,7 @@ impl RuleCacheManager {
     }
 
     // 公共逻辑：缓存规则转换
-    fn convert_cached_rules(cached_rules: Vec<CachedTechRule>) -> RswResult<RuleLibrary> {
+    pub fn convert_cached_rules(cached_rules: Vec<CachedTechRule>) -> RswResult<RuleLibrary> {
         let mut core_tech_map = FxHashMap::default();
         for cached in cached_rules {
             let tech_name = cached.basic.tech_name.clone().ok_or_else(|| {
