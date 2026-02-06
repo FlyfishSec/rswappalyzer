@@ -21,7 +21,7 @@ struct BuildConfig {
     /// 编译后二进制产物文件名
     compiled_bundle_output_name: String,
     /// 是否启用LZ4压缩
-    enable_compress: bool,
+    /// enable_compress: bool,
     /// 分类映射JSON文件路径
     category_json_path: String,
 }
@@ -95,18 +95,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     //     .map_err(|e| format!("写入调试 JSON 失败: {} - {}", debug_json_path.display(), e))?;
     // println!("✅ 调试 JSON 已写入当前目录: {}", debug_json_path.display());
 
-    // 根据配置选择是否进行LZ4压缩
-    let compressed_bundle = if cfg.enable_compress {
-        use lz4_flex::compress_prepend_size;
-        compress_prepend_size(&compiled_bundle_bin)
-    } else {
-        compiled_bundle_bin
-    };
+    // // 根据配置选择是否进行LZ4压缩
+    // let compressed_bundle = if cfg.enable_compress {
+    //     use lz4_flex::compress_prepend_size;
+    //     compress_prepend_size(&compiled_bundle_bin)
+    // } else {
+    //     compiled_bundle_bin
+    // };
 
     // 将处理后的二进制产物写入构建输出目录
     let out_dir = std::env::var("OUT_DIR")?;
     let out_path_lib = Path::new(&out_dir).join(&cfg.compiled_bundle_output_name);
-    fs::write(&out_path_lib, &compressed_bundle)
+    fs::write(&out_path_lib, &compiled_bundle_bin)
         .map_err(|e| format!("写入编译库二进制失败: {} - {}", out_path_lib.display(), e))?;
 
     println!(
