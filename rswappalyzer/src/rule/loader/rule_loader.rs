@@ -3,9 +3,9 @@ use log::{debug, warn};
 use reqwest::Client;
 use rswappalyzer_engine::compiled::CompiledBundle;
 use rswappalyzer_engine::source::WappalyzerParser;
-use rswappalyzer_engine::{RuleLibrary, RuleProcessor};
+use rswappalyzer_engine::{CachedTechRule, RuleLibrary, RuleProcessor};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::error::{RswError, RswResult};
 use crate::{RuleCacheManager, RuleConfig, RuleSource, RuleStage};
@@ -55,9 +55,19 @@ impl RuleLoader {
                 "Compiled rules are not supported in the current loading stage.".into(),
             )),
 
+            (RuleSource::LocalFile(path), RuleStage::Cached) => {
+                self.load_cached_rule(path).await
+            }
+
             // 远程规则：仅支持Raw阶段（Compiled阶段返回错误）
             (RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_), RuleStage::Raw) => {
                 self.load_remote_rules(config).await
+            }
+
+            (RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_), RuleStage::Cached) => {
+                return Err(RswError::RuleConfigError(
+                    "Cached stage is only supported for local files, remote rules do not have cached format".into(),
+                ));
             }
 
             // 远程规则指定Compiled阶段：非法配置
@@ -77,17 +87,41 @@ impl RuleLoader {
         debug!("Loading precompiled rules from: {}", path.display());
 
         // 1. 读取已编译规则文件
-        let raw_content = fs::read_to_string(path).map_err(|e| RswError::IoError(e))?;
+        // let raw_content = fs::read_to_string(path).map_err(|e| RswError::IoError(e))?;
+        let raw_content = fs::read(path).map_err(RswError::IoError)?;
 
         // 2. 反序列化为已编译包
-        let compiled_bundle: CompiledBundle = serde_json::from_str(&raw_content).map_err(|e| {
-            RswError::RuleLoadError(format!("Failed to parse compiled rules: {}", e))
+        // let compiled_bundle: CompiledBundle = serde_json::from_str(&raw_content).map_err(|e| {
+        //     RswError::RuleLoadError(format!("Failed to parse compiled rules: {}", e))
+        // })?;
+        self.load_compiled_bytes(&raw_content) // 复用唯一解析逻辑
+
+        //Ok(compiled_bundle)
+    }
+
+    /// 从内存字节加载已编译规则包
+    pub fn load_compiled_bytes(&self, bytes: &[u8]) -> RswResult<CompiledBundle> {
+        let compiled_bundle: CompiledBundle = serde_json::from_slice(bytes).map_err(|e| {
+            RswError::RuleLoadError(format!("Failed to parse compiled bytes: {}", e))
         })?;
 
-        // 已编译规则不写入缓存
-        debug!("Compiled rules loaded successfully, skip cache write");
-
         Ok(compiled_bundle)
+    }
+
+    /// 从内存字节加载已缓存规则
+    pub fn load_cached_rule_bytes(&self, bytes: &[u8]) -> RswResult<RuleLibrary> {
+        let cached_rules: Vec<CachedTechRule> = serde_json::from_slice(bytes)
+            .map_err(|e| RswError::RuleLoadError(format!("Failed to parse cached bytes: {}", e)))?;
+
+        // 核心步骤：缓存规则 → 运行时 RuleLibrary
+        let rule_lib = RuleCacheManager::convert_cached_rules(cached_rules)?;
+
+        Ok(rule_lib)
+    }
+
+    pub async fn load_cached_rule(&self, path: &PathBuf) -> RswResult<RuleLibrary> {
+        let raw_content = fs::read(path).map_err(RswError::IoError)?;
+        self.load_cached_rule_bytes(&raw_content)
     }
 
     /// 通用缓存加载逻辑（本地/远程规则复用）
