@@ -104,10 +104,34 @@ impl TechDetector {
                 rule_index = None;
             }
 
+            // 本地文件 + Cached 阶段
+            (RuleSource::LocalFile(path), RuleStage::Cached) => {
+                let rule_loader = RuleLoader::new();
+                let rule_lib = rule_loader.load_cached_rule(&path.to_path_buf()).await?;
+                // 仅轻量编译索引
+                let rule_index_inner = RuleLibraryIndex::from_rule_library(&rule_lib)?;
+                let compiled_bundle = RuleIndexer::build_compiled_library(&rule_index_inner, None)?;
+                let ac_cache = AcAutomatonCache::new(&compiled_bundle)
+                    .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
+
+                runtime_lib = Arc::new(RuleLibraryRuntime {
+                    compiled_bundle: Arc::new(compiled_bundle),
+                    ac_cache: Arc::new(ac_cache),
+                });
+                rule_index = Some(Arc::new(rule_index_inner));
+            }
+
             // 远程Compiled：不支持的配置
             (RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_), RuleStage::Compiled) => {
                 return Err(RswError::RuleConfigError(
                     "Remote rules do not support Compiled stage".into(),
+                ));
+            }
+
+            // 非法阶段组合 → 直接返回错误
+            (RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_), RuleStage::Cached) => {
+                return Err(RswError::RuleConfigError(
+                    "Cached stage is only supported for local files, remote rules do not have cached format".into(),
                 ));
             }
 
@@ -227,6 +251,54 @@ impl TechDetector {
             runtime_lib: Arc::new(runtime_lib),
             config,
             rule_index: Some(Arc::new(rule_index)),
+        })
+    }
+
+    /// 从内存中的已编译规则字节创建检测器
+    pub fn from_compiled_bytes(bytes: &[u8], config: RuleConfig) -> RswResult<Self> {
+        // 1. 复用 RuleLoader 的唯一解析逻辑
+        let rule_loader = RuleLoader::new();
+        let compiled_bundle = rule_loader.load_compiled_bytes(bytes)?;
+        
+        // 2. 构建 AC 自动机缓存
+        let ac_cache = AcAutomatonCache::new(&compiled_bundle)
+            .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
+        
+        // 3. 构建运行时库
+        let runtime_lib = Arc::new(RuleLibraryRuntime {
+            compiled_bundle: Arc::new(compiled_bundle),
+            ac_cache: Arc::new(ac_cache),
+        });
+
+        Ok(Self {
+            runtime_lib,
+            config,
+            rule_index: None,
+        })
+    }
+
+    /// 从内存中缓存规则字节创建检测器
+    pub fn from_cached_bytes(bytes: &[u8], config: RuleConfig) -> RswResult<Self> {
+        // 1. 复用 RuleLoader 的唯一解析逻辑
+        let rule_loader = RuleLoader::new();
+        let rule_lib = rule_loader.load_cached_rule_bytes(bytes)?;
+        let rule_index_inner = RuleLibraryIndex::from_rule_library(&rule_lib)?;
+        let compiled_bundle = RuleIndexer::build_compiled_library(&rule_index_inner, None)?;
+
+        // 2. 构建 AC 自动机缓存
+        let ac_cache = AcAutomatonCache::new(&compiled_bundle)
+            .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
+        
+        // 3. 构建运行时库
+        let runtime_lib = Arc::new(RuleLibraryRuntime {
+            compiled_bundle: Arc::new(compiled_bundle),
+            ac_cache: Arc::new(ac_cache),
+        });
+
+        Ok(Self {
+            runtime_lib,
+            config,
+            rule_index: None,
         })
     }
 
