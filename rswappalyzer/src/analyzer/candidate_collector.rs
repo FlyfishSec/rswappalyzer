@@ -17,7 +17,7 @@ pub fn build_all_candidate_techs<'a>(
     let candidate_techs = 
         // 使用AC自动机的LiteralId构建候选
         collect_candidate_techs_by_literal(
-            &runtime_lib.compiled_bundle.library,
+            &runtime_lib.get_compiled_lib(),
             literal_hit_ids,
             any_hit_ids,
             contains_hit_ids,
