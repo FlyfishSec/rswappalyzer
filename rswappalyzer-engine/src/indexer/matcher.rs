@@ -1,22 +1,21 @@
 use crate::{
-    MatchGate, compiled::{LiteralId, LiteralInterner, PatternEvidence}, core::Pattern,
+    MatchGate, compiled::{LiteralId, LiteralInterner, PatternEvidence}, core::Pattern, regex_cache_config::{GLOBAL_REGEX_CACHE}
 };
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex, RegexBuilder};
-use rustc_hash::{FxHashMap, FxHashSet};
-use std::{
-    sync::{Arc, RwLock},
-};
+use rustc_hash::FxHashSet;
+use std::sync::Arc;
 
 /// 全局空正则常量（预编译，用于错误回退）
 pub static EMPTY_REGEX_ARC: Lazy<Arc<Regex>> = Lazy::new(|| Arc::new(Regex::new(r"^$").unwrap())); // 安全unwrap：r"^$"是语法合法的极简正则，编译永不失败
 
-/// 全局正则缓存类型定义
-/// Key: (正则模式字符串, 是否忽略大小写)
-/// Value: 编译后的正则Arc（避免重复编译）
-type RegexCacheKey = (Arc<String>, bool);
-pub static REGEX_CACHE: Lazy<RwLock<FxHashMap<RegexCacheKey, Arc<Regex>>>> =
-    Lazy::new(|| RwLock::new(FxHashMap::default()));
+// /// 全局正则缓存类型定义
+// /// Key: (正则模式字符串, 是否忽略大小写)
+// /// Value: 编译后的正则Arc（避免重复编译）
+// pub(crate) type RegexCacheKey = (Arc<String>, bool);
+
+// pub static REGEX_CACHE: Lazy<RwLock<FxHashMap<RegexCacheKey, Arc<Regex>>>> =
+//     Lazy::new(|| RwLock::new(FxHashMap::default()));
 
 /// 运行时匹配器（非序列化）
 /// 核心特性：
@@ -43,7 +42,7 @@ pub enum Matcher {
 
 impl Matcher {
     /// 判断是否为Exists类型匹配器
-    #[inline(always)]
+    #[inline]
     pub fn is_exists(&self) -> bool {
         matches!(self, Matcher::Exists)
     }
@@ -58,36 +57,63 @@ impl Matcher {
         }
     }
 
-    /// 获取编译后的正则（懒加载+全局缓存）
-    /// 核心逻辑：读锁查缓存 → 未命中则写锁编译并缓存
-    #[inline(always)]
+    // /// 获取编译后的正则（懒加载+全局缓存）
+    // /// 核心逻辑：读锁查缓存 → 未命中则写锁编译并缓存
+    // #[inline]
+    // fn get_compiled_regex(&self) -> Arc<Regex> {
+    //     match self {
+    //         Matcher::LazyRegex {
+    //             pattern,
+    //             case_insensitive,
+    //         } => {
+    //             // 构建缓存Key
+    //             let cache_key = (pattern.clone(), *case_insensitive); // Arc clone
+
+    //             // 1. 读锁查询缓存（无锁竞争）
+    //             // 读锁：正常逻辑下锁不会毒化，unwrap安全（毒化属于程序异常，需panic暴露）
+    //             let cache_read = REGEX_CACHE.read().unwrap();
+    //             if let Some(re) = cache_read.get(&cache_key) {
+    //                 return re.clone(); // Arc clone
+    //             }
+    //             drop(cache_read); // 显式释放读锁
+
+    //             // 2. 写锁编译并插入缓存（仅缓存未命中时执行）
+    //             // 写锁：正常逻辑下锁不会毒化，unwrap安全（毒化属于程序异常，需panic暴露）
+    //             let mut cache_write = REGEX_CACHE.write().unwrap();
+    //             cache_write
+    //                 .entry(cache_key)
+    //                 .or_insert_with(|| Self::compile_regex(pattern.as_str(), *case_insensitive))
+    //                 .clone() // Arc clone
+    //         }
+    //         // 非正则类型返回全局空正则
+    //         _ => EMPTY_REGEX_ARC.clone(), // arc clone
+    //     }
+    // }
+
+        /// 获取编译后的正则（使用全局/共享缓存）
+    #[inline]
     fn get_compiled_regex(&self) -> Arc<Regex> {
         match self {
             Matcher::LazyRegex {
                 pattern,
                 case_insensitive,
             } => {
-                // 构建缓存Key
-                let cache_key = (pattern.clone(), *case_insensitive); // Arc clone
+                let cache_key = (pattern.clone(), *case_insensitive);
+                // 使用全局默认缓存
+                let cache = &*GLOBAL_REGEX_CACHE;
 
-                // 1. 读锁查询缓存（无锁竞争）
-                // 读锁：正常逻辑下锁不会毒化，unwrap安全（毒化属于程序异常，需panic暴露）
-                let cache_read = REGEX_CACHE.read().unwrap();
-                if let Some(re) = cache_read.get(&cache_key) {
-                    return re.clone(); // Arc clone
+                // 1. 从缓存获取
+                if let Some(re) = cache.get(&cache_key) {
+                    return re;
                 }
-                drop(cache_read); // 显式释放读锁
 
-                // 2. 写锁编译并插入缓存（仅缓存未命中时执行）
-                // 写锁：正常逻辑下锁不会毒化，unwrap安全（毒化属于程序异常，需panic暴露）
-                let mut cache_write = REGEX_CACHE.write().unwrap();
-                cache_write
-                    .entry(cache_key)
-                    .or_insert_with(|| Self::compile_regex(pattern.as_str(), *case_insensitive))
-                    .clone() // Arc clone
+                // 2. 未命中则编译并插入缓存
+                let compiled = Self::compile_regex(pattern.as_str(), *case_insensitive);
+                cache.insert(cache_key, compiled.clone());
+                compiled
             }
             // 非正则类型返回全局空正则
-            _ => EMPTY_REGEX_ARC.clone(), // arc clone
+            _ => EMPTY_REGEX_ARC.clone(),
         }
     }
 
@@ -111,7 +137,7 @@ impl Matcher {
     }
 
     /// 描述匹配器规则（用于日志/调试输出）
-    #[inline(always)]
+    #[inline]
     pub fn describe(&self, literal_interner: &LiteralInterner) -> String {
         match self {
             Matcher::Contains(lit_id) => {
@@ -131,7 +157,7 @@ impl Matcher {
     // }
 
     /// 执行匹配
-    #[inline(always)]
+    #[inline]
     pub fn matches(&self, input: &str, contains_hit_ids: &FxHashSet<LiteralId>) -> bool {
         match self {
             Matcher::Contains(lid) => contains_hit_ids.contains(lid),
@@ -160,6 +186,7 @@ impl Matcher {
             Matcher::LazyRegex {
                 pattern,
                 case_insensitive,
+                ..
             } => super::MatcherSpec::Regex {
                 pattern: pattern.to_string(),
                 case_insensitive: *case_insensitive,
@@ -205,6 +232,27 @@ impl Matcher {
             case_insensitive,
         }
     }
+    // // 重载：默认使用全局缓存
+    // pub fn from_regex(pattern: &Pattern, case_insensitive: bool) -> Self {
+    //     Self::from_regex_with_cache(
+    //         pattern,
+    //         case_insensitive,
+    //         Arc::new(RegexCache::global().clone()),
+    //     )
+    // }
+
+    // // 重载：支持自定义缓存
+    // pub fn from_regex_with_cache(
+    //     pattern: &Pattern,
+    //     case_insensitive: bool,
+    //     cache: Arc<RegexCache>,
+    // ) -> Self {
+    //     Self::LazyRegex {
+    //         pattern: Arc::new(pattern.pattern.clone()),
+    //         case_insensitive,
+    //         cache,
+    //     }
+    // }
 
     /// 从静态MatcherSpec还原运行态Matcher
     /// 参数：spec - 静态匹配器描述体
@@ -222,6 +270,27 @@ impl Matcher {
             },
         }
     }
+
+    // // 从 MatcherSpec 还原（默认全局缓存）
+    // pub fn from_spec(spec: &MatcherSpec) -> Self {
+    //     Self::from_spec_with_cache(spec, Arc::new(RegexCache::global().clone()))
+    // }
+
+    // // 从 MatcherSpec 还原（支持自定义缓存）
+    // pub fn from_spec_with_cache(spec: &MatcherSpec, cache: Arc<RegexCache>) -> Self {
+    //     match spec {
+    //         MatcherSpec::Contains(lid) => Self::Contains(*lid),
+    //         MatcherSpec::Exists => Self::Exists,
+    //         MatcherSpec::Regex {
+    //             pattern,
+    //             case_insensitive,
+    //         } => Self::LazyRegex {
+    //             pattern: Arc::new(pattern.clone()),
+    //             case_insensitive: *case_insensitive,
+    //             cache,
+    //         },
+    //     }
+    // }
 }
 
 // /// 结构前置条件扩展方法
@@ -297,23 +366,25 @@ pub fn fold_to_match_gate(evidence: &PatternEvidence) -> MatchGate {
     // 最小证据字面量有效性：非空且至少有一个有效字面量
     let has_valid_literals = !literals.is_empty();
     // 3. 高置信度判定：存在2个以上 或 有超长字面量（>6）
-    let has_long_literal = literals.iter().any(|s| s.len() > HIGH_CONFIDENCE_LEN_THRESHOLD);
+    let has_long_literal = literals
+        .iter()
+        .any(|s| s.len() > HIGH_CONFIDENCE_LEN_THRESHOLD);
     let is_high_confidence = literals.len() > 1 || has_long_literal;
 
     // 预处理Any列表
     // 1. 过滤无效项
     structural_any_list.retain(|s| s.len() >= STR_MIN_VALID_LEN);
-    
+
     // 2. 质量过滤（仅当满足数量条件时执行）
     let total_valid_any = structural_any_list.len();
     let high_quality_any_count = structural_any_list
         .iter()
         .filter(|s| s.len() > ANY_LIST_HIGH_QUALITY_ITEM_MIN_LEN)
         .count();
-    
-    let should_filter_any = total_valid_any >= ANY_LIST_QUALITY_FILTER_MIN_TOTAL 
+
+    let should_filter_any = total_valid_any >= ANY_LIST_QUALITY_FILTER_MIN_TOTAL
         && high_quality_any_count >= ANY_LIST_HIGH_QUALITY_ITEM_MIN_COUNT;
-    
+
     if should_filter_any {
         structural_any_list.retain(|s| s.len() > ANY_LIST_HIGH_QUALITY_ITEM_MIN_LEN);
     }
@@ -329,7 +400,11 @@ pub fn fold_to_match_gate(evidence: &PatternEvidence) -> MatchGate {
     if is_high_confidence {
         // 场景1：高置信度 → 使用全部最小证据字面量（用于交集判断）
         MatchGate {
-            require_literals: if has_valid_literals { Some(literals) } else { None },
+            require_literals: if has_valid_literals {
+                Some(literals)
+            } else {
+                None
+            },
             require_literal_ids: None,
             require_any_literals: None,
             require_any_literal_ids: None,
