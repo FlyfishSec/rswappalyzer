@@ -54,7 +54,7 @@ use rswappalyzer_engine::{
 /// # 返回值
 /// 成功时返回标准化的检测结果 `DetectResult`（包含检测到的技术栈、隐含推导结果）；
 /// 失败时返回 `RswResult` 封装的错误类型，兼容库统一错误处理体系
-#[inline(always)]
+#[inline]
 pub(crate) fn detect(
     detector: &TechDetector,
     headers: &HeaderMap,
@@ -71,8 +71,8 @@ pub(crate) fn detect(
     let header_evidence = HeaderEvidence::build(
         &single_header_map,
         &standard_cookies,
-        &detector.runtime_lib.ac_cache,
-        &detector.runtime_lib.compiled_bundle,
+        &detector.runtime_lib.get_ac_cache(),
+        &detector.runtime_lib.get_compiled_bundle(),
     );
 
     // ========== 阶段2：HTML证据构建（核心生命周期修复） ==========
@@ -98,8 +98,8 @@ pub(crate) fn detect(
                 hss,
                 &er.script_src_combined,
                 &er.meta_tags,
-                &detector.runtime_lib.ac_cache,
-                &detector.runtime_lib.compiled_bundle,
+                &detector.runtime_lib.get_ac_cache(),
+                &detector.runtime_lib.get_compiled_bundle(),
             ))
         } else {
             None
@@ -128,7 +128,7 @@ pub(crate) fn detect(
     // ========== 阶段4：关联规则推导 ==========
     // 应用隐含规则，推导间接检测到的技术栈
     let (imply_map, implies_list) =
-        DetectionUpdater::apply_implies(&detector.runtime_lib.compiled_lib(), &mut detected);
+        DetectionUpdater::apply_implies(&detector.runtime_lib.get_compiled_lib(), &mut detected);
 
     // ========== 阶段5：结果聚合与标准化 ==========
     // 将原始检测结果转换为标准化的Technology列表
