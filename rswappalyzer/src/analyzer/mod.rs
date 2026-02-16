@@ -109,7 +109,7 @@ pub trait Analyzer<P: ?Sized, D: AnalyzerInput> {
 
         // 提前获取所有需要的 interners
         //let token_interner = &runtime_lib.compiled_bundle.token_interner;
-        let literal_interner = &runtime_lib.compiled_bundle.literal_interner;
+        let literal_interner = &runtime_lib.get_compiled_bundle().literal_interner;
 
         // LiteralId旁路调试
         // #[cfg(debug_assertions)]
@@ -152,7 +152,7 @@ pub trait Analyzer<P: ?Sized, D: AnalyzerInput> {
 
         // 3 技术名称转换
         // 转换TechId为String名称
-        let tech_interner = &runtime_lib.compiled_bundle.tech_interner;
+        let tech_interner = &runtime_lib.get_compiled_bundle().tech_interner;
         let candidate_tech_names: FxHashSet<&str> = candidate_tech_ids
             .iter()
             .filter_map(|&tech_id| tech_interner.get_name(tech_id))
@@ -162,8 +162,7 @@ pub trait Analyzer<P: ?Sized, D: AnalyzerInput> {
         // 遍历候选技术执行匹配
         for tech_name in candidate_tech_names {
             let Some(tech) = runtime_lib
-                .compiled_bundle
-                .library
+                .get_compiled_lib()
                 .tech_patterns
                 .get(tech_name)
             else {
