@@ -5,10 +5,10 @@ use crate::{
     builder::evidence::{extract_any_literals, extract_min_evidence_literal},
     compiled::{LiteralInterner, PatternEvidence},
     matcher::fold_to_match_gate,
-    //min_evidence::MinEvidenceMeta,
-    CommonIndexedRule, CompiledPattern, EvidenceKind, ExecutablePattern, MatchType, Matcher, Scope,
+    CommonIndexedRule, CompiledPattern, EvidenceKind, ExecutablePattern, MatchType, MatcherSpec,
+    Scope,
 };
-use rustc_hash::{FxHashMap};
+use rustc_hash::FxHashMap;
 
 /// 规则编译器
 #[derive(Debug, Clone, Default)]
@@ -31,22 +31,29 @@ impl PatternCompiler {
                 None
             };
 
+            // // 构建PatternEvidence（分字段存储不同类型字面量）
+            // let evidence = Self::build_pattern_evidence(r);
+            // //let literal_type = Self::get_literal_type(&evidence);
+
             // 构建PatternEvidence（分字段存储不同类型字面量）
             let evidence = Self::build_pattern_evidence(r);
-            //let literal_type = Self::get_literal_type(&evidence);
 
-            // 构建Matcher
-            let matcher = match r.match_type {
-                MatchType::Contains => Matcher::from_contains(literal_id.unwrap()),
-                MatchType::Exists => Matcher::from_exists(),
-                MatchType::Regex => Matcher::from_regex(&r.pattern, true),
+            // 构建MatcherSpec
+            let matcher_spec = match r.match_type {
+                MatchType::Contains => MatcherSpec::Contains(literal_id.unwrap()),
+                MatchType::Exists => MatcherSpec::Exists,
+                MatchType::Regex => MatcherSpec::Regex {
+                    pattern: r.pattern.pattern.clone(),
+                    case_insensitive: true,
+                },
             };
 
             // 提取结构前置条件
             //let structural_prereq = StructuralPrereq::from_matcher(&matcher, literal_interner);
 
             // 判定证据类型(剪枝作用域)
-            let evidence_kind = Self::judge_evidence_kind(&matcher, &evidence);
+            //let evidence_kind = Self::judge_evidence_kind(&matcher, &evidence);
+            let evidence_kind = Self::judge_evidence_kind(&matcher_spec, &evidence);
 
             // 生成无ID的MatchGate
             let match_gate = fold_to_match_gate(&evidence);
@@ -58,8 +65,10 @@ impl PatternCompiler {
                 evidence_kind,
                 evidence,
                 exec: ExecutablePattern {
-                    matcher: matcher.to_spec(),
+                    //matcher: matcher.to_spec(),
+                    matcher: matcher_spec,
                     matcher_cache: once_cell::sync::OnceCell::new(),
+                    //regex_cache: once_cell::sync::OnceCell::new(),
                     match_gate,
                     confidence: r.pattern.confidence,
                     version_template: r.pattern.version_template.clone(),
@@ -92,15 +101,18 @@ impl PatternCompiler {
                 let evidence = Self::build_pattern_evidence(r);
                 //let literal_type = Self::get_literal_type(&evidence);
 
-                let matcher = match r.match_type {
-                    MatchType::Contains => Matcher::from_contains(literal_id.unwrap()),
-                    MatchType::Exists => Matcher::from_exists(),
-                    MatchType::Regex => Matcher::from_regex(&r.pattern, true),
+                let matcher_spec = match r.match_type {
+                    MatchType::Contains => MatcherSpec::Contains(literal_id.unwrap()),
+                    MatchType::Exists => MatcherSpec::Exists,
+                    MatchType::Regex => MatcherSpec::Regex {
+                        pattern: r.pattern.pattern.clone(),
+                        case_insensitive: true,
+                    },
                 };
 
                 // 构建剪枝门控
                 //let structural_prereq = StructuralPrereq::from_matcher(&matcher, literal_interner);
-                let evidence_kind = Self::judge_evidence_kind(&matcher, &evidence);
+                let evidence_kind = Self::judge_evidence_kind(&matcher_spec, &evidence);
                 let match_gate = fold_to_match_gate(&evidence);
 
                 rule_pats.push(CompiledPattern {
@@ -110,8 +122,9 @@ impl PatternCompiler {
                     evidence_kind,
                     evidence,
                     exec: ExecutablePattern {
-                        matcher: matcher.to_spec(),
+                        matcher: matcher_spec,
                         matcher_cache: once_cell::sync::OnceCell::new(),
+                        //regex_cache: once_cell::sync::OnceCell::new(),
                         match_gate,
                         confidence: r.pattern.confidence,
                         version_template: r.pattern.version_template.clone(),
@@ -128,12 +141,12 @@ impl PatternCompiler {
     }
 
     /// 判定证据类型（LiteralBased/NoLiteral/ExistsOnly）
-    fn judge_evidence_kind(matcher: &Matcher, evidence: &PatternEvidence) -> EvidenceKind {
+    fn judge_evidence_kind(matcher: &MatcherSpec, evidence: &PatternEvidence) -> EvidenceKind {
         match matcher {
-            Matcher::Exists => EvidenceKind::ExistsOnly,
-            Matcher::Contains(_) => EvidenceKind::LiteralBased,
-            Matcher::LazyRegex { .. } => {
-                // 直接使用已提取的 literals 判断
+            MatcherSpec::Exists => EvidenceKind::ExistsOnly,
+            MatcherSpec::Contains(_) => EvidenceKind::LiteralBased,
+            MatcherSpec::Regex { .. } => {
+                // 使用已提取的 literals 判断
                 if !evidence.literals.is_empty() {
                     EvidenceKind::LiteralBased
                 } else {
