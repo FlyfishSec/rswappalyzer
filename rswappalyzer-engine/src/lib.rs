@@ -1,8 +1,8 @@
 //! 技术规则匹配引擎 - 标准化规则解析/编译/索引/匹配/清洗
-//#![warn(missing_docs)]        // 强制要求文档注释，提升代码规范性
-#![forbid(unsafe_code)]      // 禁止unsafe代码，最大化内存安全
-#![warn(unused_imports)]     // 警告未使用的导入，清理冗余代码
-#![warn(unused_variables)]   // 警告未使用的变量，减少内存浪费
+//#![warn(missing_docs)]      // 强制要求文档注释
+#![forbid(unsafe_code)]       // 禁止unsafe代码
+#![warn(unused_imports)]      // 警告未使用的导入
+#![warn(unused_variables)]    // 警告未使用的变量
 
 /// 编译特性开关
 #[cfg(feature = "full-meta")]
