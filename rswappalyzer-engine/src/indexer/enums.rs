@@ -3,8 +3,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    compiled::{LiteralId, LiteralInterner},
-    Matcher,
+    Matcher, compiled::{LiteralId, LiteralInterner}
 };
 
 // 纯静态的匹配规则描述体
@@ -20,7 +19,7 @@ pub enum MatcherSpec {
 
 // 运行时匹配器 转换方法
 impl MatcherSpec {
-    #[inline(always)]
+    #[inline]
     pub fn to_matcher(&self) -> Matcher {
         match self {
             MatcherSpec::Contains(lid) => Matcher::Contains(*lid),
@@ -34,6 +33,22 @@ impl MatcherSpec {
             },
         }
     }
+
+    // #[inline]
+    // pub fn to_matcher(&self, cache: Arc<RegexCache>) -> Matcher {
+    //     match self {
+    //         MatcherSpec::Contains(lid) => Matcher::Contains(*lid),
+    //         MatcherSpec::Exists => Matcher::Exists,
+    //         MatcherSpec::Regex {
+    //             pattern,
+    //             case_insensitive,
+    //         } => Matcher::LazyRegex {
+    //             pattern: Arc::new(pattern.clone()),
+    //             case_insensitive: *case_insensitive,
+    //             cache,
+    //         },
+    //     }
+    // }
 }
 
 /// 匹配准入网关 - 流水线式设计（核心重构点）
@@ -58,14 +73,22 @@ impl MatchGate {
 
         // 补全最小证据字面量ID
         if let Some(literals) = &gate.require_literals {
-            gate.require_literal_ids =
-                Some(literals.iter().filter_map(|s| literal_interner.get_id(s)).collect());
+            gate.require_literal_ids = Some(
+                literals
+                    .iter()
+                    .filter_map(|s| literal_interner.get_id(s))
+                    .collect(),
+            );
         }
 
         // Any字面量ID
         if let Some(any_list) = &gate.require_any_literals {
-            gate.require_any_literal_ids =
-                Some(any_list.iter().filter_map(|s| literal_interner.get_id(s)).collect());
+            gate.require_any_literal_ids = Some(
+                any_list
+                    .iter()
+                    .filter_map(|s| literal_interner.get_id(s))
+                    .collect(),
+            );
         }
 
         gate
