@@ -69,8 +69,7 @@ pub fn debug_literal_hit_matching(
 
     // ========== 3. 指定技术名的 LiteralHit 匹配检查 ==========
     if let Some(tech) = runtime_lib
-        .compiled_bundle
-        .library
+        .get_compiled_lib()
         .tech_patterns
         .get(target_tech_name)
     {
