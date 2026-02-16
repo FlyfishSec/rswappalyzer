@@ -4,6 +4,9 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::{hash::DefaultHasher, path::PathBuf, time::Duration};
 
+pub use rswappalyzer_engine::RegexCacheConfig;
+pub use rswappalyzer_engine::regex_cache_config::RegexCache;
+
 /// 规则来源
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuleSource {
@@ -16,9 +19,9 @@ pub enum RuleSource {
 /// 规则阶段（明确区分原始/已编译状态）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuleStage {
-    Raw,        // 原始规则（需要解析 / 编译）
-    Compiled,   // 已编译产物（可直接使用）
-    Cached,     // 缓存的规则
+    Raw,      // 原始规则（需要解析 / 编译）
+    Compiled, // 已编译产物（可直接使用）
+    Cached,   // 缓存的规则
 }
 
 /// 规则来源+阶段（核心抽象：组合语义）
@@ -125,15 +128,21 @@ pub struct RuleConfig {
     pub load_method: RuleLoadMethod,
     pub options: RuleOptions,
     pub remote_options: Option<RemoteOptions>,
+    /// 正则缓存配置（创建实例时使用，默认值：RegexCacheConfig::default()）
+    pub regex_cache_config: RegexCacheConfig,
+    // /// 可选的共享正则缓存实例（传则复用，不传则用 regex_cache_config 创建新实例）
+    // pub regex_cache_instance: Option<Arc<RegexCache>>,
 }
 
 impl Default for RuleConfig {
     fn default() -> Self {
         Self {
-            origin: RuleOrigin::embedded(), // 兼容原有默认逻辑
+            origin: RuleOrigin::embedded(),
             load_method: RuleLoadMethod::Embedded,
             options: RuleOptions::default(),
             remote_options: None,
+            regex_cache_config: RegexCacheConfig::default(),
+            //regex_cache_instance: None, // 默认不复用正则缓存实例
         }
     }
 }
@@ -149,6 +158,8 @@ impl RuleConfig {
                 ..RuleOptions::default()
             },
             remote_options: None,
+            regex_cache_config: RegexCacheConfig::default(),
+            //regex_cache_instance: None,
         }
     }
 
@@ -166,7 +177,19 @@ impl RuleConfig {
             load_method: RuleLoadMethod::CacheDir(cache_dir),
             options: RuleOptions::default(),
             remote_options: None,
+            regex_cache_config: RegexCacheConfig::default(),
+            // regex_cache_instance: None,
         }
+    }
+
+    /// 带缓存配置的本地文件
+    pub fn local_file_with_regex_cache_config(
+        path: impl Into<PathBuf>,
+        cache_settings: RegexCacheConfig,
+    ) -> Self {
+        let mut config = Self::local_file(path);
+        config.regex_cache_config = cache_settings;
+        config
     }
 
     /// 本地已编译规则文件
@@ -181,6 +204,8 @@ impl RuleConfig {
                 ..RuleOptions::default()
             },
             remote_options: None,
+            regex_cache_config: RegexCacheConfig::default(),
+            // regex_cache_instance: None,
         }
     }
 
@@ -195,6 +220,8 @@ impl RuleConfig {
                 ..RuleOptions::default()
             },
             remote_options: None,
+            regex_cache_config: RegexCacheConfig::default(),
+            // regex_cache_instance: None,
         }
     }
 
@@ -211,6 +238,8 @@ impl RuleConfig {
                 timeout,
                 retry,
             }),
+            regex_cache_config: RegexCacheConfig::default(),
+            // regex_cache_instance: None,
         }
     }
 
@@ -227,6 +256,8 @@ impl RuleConfig {
                 timeout,
                 retry,
             }),
+            regex_cache_config: RegexCacheConfig::default(),
+            // regex_cache_instance: None,
         }
     }
 
@@ -249,9 +280,7 @@ impl RuleConfig {
                     RuleStage::Cached => PathBuf::from("cached_rules_unsupported.json"), // 占位文件名（无需缓存）
                 }
             }
-            RuleSource::RemoteOfficial => {
-                PathBuf::from("official_rules.json")
-            }
+            RuleSource::RemoteOfficial => PathBuf::from("official_rules.json"),
             RuleSource::RemoteCustom(url) => {
                 // 1. 生成固定哈希：相同 URL → 相同哈希值 → 相同文件名（实现覆盖）
                 let mut hasher = DefaultHasher::new();
@@ -266,6 +295,25 @@ impl RuleConfig {
         // 最终返回：缓存目录 + 文件名（PathBuf 拼接）
         self.options.cache_dir.join(file_name)
     }
+
+    /// 链式设置缓存配置
+    pub fn with_regex_cache_config(mut self, cache_settings: RegexCacheConfig) -> Self {
+        self.regex_cache_config = cache_settings;
+        self
+    }
+
+    // // 共享实例方法
+    // pub fn with_regex_cache_instance(mut self, instance: Arc<RegexCache>) -> Self {
+    //     self.regex_cache_instance = Some(instance);
+    //     self
+    // }
+
+    // pub fn resolve_regex_cache(&self) -> Arc<RegexCache> {
+    //     match self.regex_cache_instance.as_ref() {
+    //         Some(instance) => instance.clone(),
+    //         None => Arc::new(RegexCache::new(self.regex_cache_config.to_engine_config())),
+    //     }
+    // }
 }
 
 /// 自定义构建器（链式 API）
@@ -341,6 +389,24 @@ impl CustomConfigBuilder {
         self.config.remote_options = Some(remote_opts);
         self
     }
+
+    /// 链式设置正则缓存配置
+    pub fn regex_cache_config(mut self, cache_settings: RegexCacheConfig) -> Self {
+        self.config.regex_cache_config = cache_settings;
+        self
+    }
+
+    /// 快速设置正则缓存大小和TTL
+    pub fn regex_cache_params(mut self, max_size: usize, ttl_seconds: u64) -> Self {
+        self.config.regex_cache_config = RegexCacheConfig::new(max_size, ttl_seconds);
+        self
+    }
+
+    // // 共享实例方法
+    // pub fn regex_cache_instance(mut self, instance: Arc<RegexCache>) -> Self {
+    //     self.config.regex_cache_instance = Some(instance);
+    //     self
+    // }
 
     pub fn build(mut self) -> RuleConfig {
         self.apply_load_method();
