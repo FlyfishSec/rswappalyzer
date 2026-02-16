@@ -22,7 +22,7 @@ from an HTTP response using **rswappalyzer**.
 ```rust
 use reqwest::Client;
 use reqwest::header::HeaderMap;
-use rswappalyzer::{CustomConfigBuilder, RetryPolicy, RuleConfig, RuleOrigin, TechDetector, config::rule::RemoteOptions};
+use rswappalyzer::{CustomConfigBuilder, RetryPolicy, RuleConfig, RuleOrigin, TechDetector, config::rule::RemoteOptions, RegexCache, RegexCacheConfig};
 use std::{error::Error, path::PathBuf, time::Duration};
 
 #[tokio::main]
@@ -98,6 +98,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // let config = RuleConfig::empty();
     // 1.7.3 Build the detector directly from cached rule bytes
     // let detector = TechDetector::from_cached_bytes(&cached_rule_bytes, config).unwrap();
+
+    // ⚡Custom regex cache⚡
+    // 1.8: Configure a custom regex cache (default 10,000 entries, 3600s)
+    // let regex_cache_config = RegexCache::new(RegexCacheConfig::new(20000, 7200));
+    // let config = RuleConfig::default()
+    //     .with_regex_cache_config(regex_cache_config);
 
     // 2. Create a technology detector instance
     // The detector owns all compiled rule data and is safe to reuse
