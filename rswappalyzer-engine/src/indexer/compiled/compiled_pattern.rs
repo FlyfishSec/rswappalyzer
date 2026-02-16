@@ -4,12 +4,16 @@
 use once_cell::sync::OnceCell;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use std::fmt::Debug; // 1. 导入Debug trait
+use std::{fmt::Debug}; // 1. 导入Debug trait
 
 use crate::{
-    EvidenceKind, Matcher, compiled::{LiteralId, LiteralInterner}, indexer::{
-        MatcherSpec, enums::{MatchGate, Scope}
-    }, prune_manager::{self, PruneContext, PruneMode}
+    compiled::{LiteralId, LiteralInterner},
+    indexer::{
+        enums::{MatchGate, Scope},
+        MatcherSpec,
+    },
+    prune_manager::{self, PruneContext, PruneMode},
+    EvidenceKind, Matcher,
 };
 
 /// 可执行匹配模式（核心执行单元）
@@ -23,18 +27,80 @@ pub struct ExecutablePattern {
     #[serde(default)]
     pub matcher_cache: OnceCell<Matcher>,
 
+    // /// 正则缓存（直接持有，不序列化）
+    // #[serde(skip)]
+    // pub regex_cache: Arc<RegexCache>,
+    // /// 正则缓存（运行时注入，不序列化）
+    // #[serde(skip)]
+    // #[serde(default)]
+    // pub regex_cache: OnceCell<Arc<RegexCache>>,
+
     /// 匹配准入网关（剪枝规则）
     #[serde(default)]
     pub match_gate: MatchGate,
     /// 匹配置信度（0-100）
     pub confidence: u8,
-    /// 版本提取模板（可选）
+    /// 版本提取模板
     pub version_template: Option<String>,
 }
 
 impl ExecutablePattern {
-    /// 懒加载获取匹配器实例（OnceCell 确保仅初始化一次）
-    #[inline(always)]
+    /// 构造函数
+    pub fn new(
+        matcher: MatcherSpec,
+        //regex_cache: Arc<RegexCache>,
+        match_gate: MatchGate,
+        confidence: u8,
+        version_template: Option<String>,
+    ) -> Self {
+        Self {
+            matcher,
+            matcher_cache: OnceCell::new(),
+            //regex_cache: OnceCell::new(),
+            match_gate,
+            confidence,
+            version_template,
+        }
+    }
+
+    // /// 注入RegexCache（初始化阶段调用）
+    // pub fn inject_cache(&self, cache: Arc<RegexCache>) {
+    //     let _ = self.regex_cache.set(cache);
+    // }
+
+    // /// 懒加载获取匹配器实例
+    // #[inline]
+    // pub fn get_matcher(&self) -> &Matcher {
+    //     self.matcher_cache
+    //         .get_or_init(|| self.matcher.to_matcher(self.regex_cache.clone()))
+    // }
+
+    // /// 懒加载获取匹配器实例
+    // #[inline]
+    // pub fn get_matcher(&self) -> &Matcher {
+    //     // let cache_opt = self.regex_cache.get();
+
+    //     // println!(
+    //     //     "Pattern addr: {:p}, cache is_some: {}",
+    //     //     self,
+    //     //     cache_opt.is_some()
+    //     // );
+
+    //     // if let Some(cache) = cache_opt {
+    //     //     println!("Cache Arc addr: {:p}", Arc::as_ptr(cache));
+    //     // }
+
+    //     let cache = self
+    //         .regex_cache
+    //         .get()
+    //         .expect("RegexCache not injected into ExecutablePattern! Call inject_cache first.");
+
+    //     self.matcher_cache
+    //         .get_or_init(|| self.matcher.to_matcher(cache.clone()))
+    // }
+
+    /// 懒加载获取匹配器实例
+    #[inline]
     pub fn get_matcher(&self) -> &Matcher {
         self.matcher_cache.get_or_init(|| self.matcher.to_matcher())
     }
@@ -80,6 +146,24 @@ pub struct CompiledPattern {
 }
 
 impl CompiledPattern {
+    pub fn new(
+        scope: Scope,
+        index_key: String,
+        literal_id: Option<LiteralId>,
+        evidence_kind: EvidenceKind,
+        evidence: PatternEvidence,
+        exec: ExecutablePattern,
+    ) -> Self {
+        Self {
+            scope,
+            index_key,
+            literal_id,
+            evidence_kind,
+            evidence,
+            exec,
+        }
+    }
+
     /// 执行字符串匹配（自动激活懒加载匹配器）
     ///
     /// # 参数
@@ -88,7 +172,7 @@ impl CompiledPattern {
     ///
     /// # 返回值
     /// 匹配结果（bool）
-    #[inline(always)]
+    #[inline]
     pub fn matches(&self, input: &str, contains_hit_ids: &FxHashSet<LiteralId>) -> bool {
         //pub fn matches<T: Eq + Hash + Borrow<str> + Debug>(&self, input: &str, contains_hit_lc: &FxHashSet<T>) -> bool {
         // 短路调试
@@ -97,7 +181,7 @@ impl CompiledPattern {
     }
 
     /// 纯执行模式剪枝检查
-    #[inline(always)]
+    #[inline]
     pub fn prune_check(
         &self,
         input: &str,
@@ -126,7 +210,7 @@ impl CompiledPattern {
     }
 
     /// 调试模式剪枝检查（带日志 + 耗时统计）
-    #[inline(always)]
+    #[inline]
     //pub fn prune_check_with_log<T: Eq + Hash + Borrow<str> + Debug>(
     pub fn prune_check_with_log(
         &self,
@@ -156,7 +240,7 @@ impl CompiledPattern {
     }
 
     /// 剪枝 + 匹配（纯执行模式）
-    #[inline(always)]
+    #[inline]
     pub fn matches_with_prune(
         &self,
         input: &str,
@@ -180,7 +264,7 @@ impl CompiledPattern {
     }
 
     /// 剪枝 + 匹配（调试模式）
-    #[inline(always)]
+    #[inline]
     pub fn matches_with_prune_log(
         &self,
         input: &str,
