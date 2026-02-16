@@ -74,14 +74,13 @@ impl TechDetector {
     /// 成功返回检测器实例，失败返回 `RswError`（包含规则加载/编译错误信息）
     pub async fn new(config: RuleConfig) -> RswResult<Self> {
         let (source, stage) = (&config.origin.source, &config.origin.stage);
-        let (runtime_lib, rule_index): (Arc<RuleLibraryRuntime>, Option<Arc<RuleLibraryIndex>>);
-
-        match (source, stage) {
-            //RuleOrigin::Embedded => Self::with_embedded_rules(config),
+        
+        let (runtime_lib, rule_index) = match (source, stage) {
+            // 内置规则分支
             (RuleSource::Embedded, _) => {
                 #[cfg(feature = "embedded-rules")]
                 {
-                    (runtime_lib, rule_index) = Self::with_embedded_rules_inner()?;
+                    Self::build_from_embedded()?
                 }
                 #[cfg(not(feature = "embedded-rules"))]
                 {
@@ -91,69 +90,39 @@ impl TechDetector {
                 }
             }
 
+            // 已编译的本地文件 - 无需索引
             (RuleSource::LocalFile(path), RuleStage::Compiled) => {
-                let rule_loader = RuleLoader::new();
-                let compiled_bundle = rule_loader.load_compiled_bundle(&path).await?;
-                let ac_cache = AcAutomatonCache::new(&compiled_bundle)
-                    .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
-
-                runtime_lib = Arc::new(RuleLibraryRuntime {
-                    compiled_bundle: Arc::new(compiled_bundle),
-                    ac_cache: Arc::new(ac_cache),
-                });
-                rule_index = None;
+                let compiled_bundle = RuleLoader::new().load_compiled_bundle(path).await?;
+                Self::build_from_compiled(compiled_bundle, None)?
             }
 
-            // 本地文件 + Cached 阶段
+            // 缓存的本地文件 - 需要构建索引和编译包
             (RuleSource::LocalFile(path), RuleStage::Cached) => {
-                let rule_loader = RuleLoader::new();
-                let rule_lib = rule_loader.load_cached_rule(&path.to_path_buf()).await?;
-                // 仅轻量编译索引
-                let rule_index_inner = RuleLibraryIndex::from_rule_library(&rule_lib)?;
-                let compiled_bundle = RuleIndexer::build_compiled_library(&rule_index_inner, None)?;
-                let ac_cache = AcAutomatonCache::new(&compiled_bundle)
-                    .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
-
-                runtime_lib = Arc::new(RuleLibraryRuntime {
-                    compiled_bundle: Arc::new(compiled_bundle),
-                    ac_cache: Arc::new(ac_cache),
-                });
-                rule_index = Some(Arc::new(rule_index_inner));
+                let rule_lib = RuleLoader::new().load_cached_rule(&path.to_path_buf()).await?;
+                Self::build_from_rule_library(rule_lib, true)?
             }
 
-            // 远程Compiled：不支持的配置
+            // 原始规则文件（本地或远程）- 需要完整编译
+            (
+                RuleSource::LocalFile(_) | RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_),
+                RuleStage::Raw,
+            ) => {
+                let rule_lib = RuleLoader::new().load(&config).await?;
+                Self::build_from_rule_library(rule_lib, true)?
+            }
+
+            // 不支持的配置组合
             (RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_), RuleStage::Compiled) => {
                 return Err(RswError::RuleConfigError(
                     "Remote rules do not support Compiled stage".into(),
                 ));
             }
-
-            // 非法阶段组合 → 直接返回错误
             (RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_), RuleStage::Cached) => {
                 return Err(RswError::RuleConfigError(
-                    "Cached stage is only supported for local files, remote rules do not have cached format".into(),
+                    "Cached stage is only supported for local files".into(),
                 ));
             }
-
-            // 本地已编译规则：直接加载编译包，规则索引返回None
-            (
-                RuleSource::LocalFile(_) | RuleSource::RemoteOfficial | RuleSource::RemoteCustom(_),
-                RuleStage::Raw,
-            ) => {
-                let rule_loader = RuleLoader::new();
-                let rule_lib = rule_loader.load(&config).await?;
-                let rule_index_inner = RuleLibraryIndex::from_rule_library(&rule_lib)?;
-                let compiled_bundle = RuleIndexer::build_compiled_library(&rule_index_inner, None)?;
-                let ac_cache = AcAutomatonCache::new(&compiled_bundle)
-                    .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
-
-                runtime_lib = Arc::new(RuleLibraryRuntime {
-                    compiled_bundle: Arc::new(compiled_bundle),
-                    ac_cache: Arc::new(ac_cache),
-                });
-                rule_index = Some(Arc::new(rule_index_inner));
-            }
-        }
+        };
 
         Ok(Self {
             runtime_lib,
@@ -173,20 +142,11 @@ impl TechDetector {
     /// # 返回值
     /// 成功返回检测器实例，失败返回 `RswError`
     pub fn with_rules(rule_lib: RuleLibrary, config: RuleConfig) -> RswResult<Self> {
-        let rule_index = RuleLibraryIndex::from_rule_library(&rule_lib)?;
-        let compiled_bundle = RuleIndexer::build_compiled_library(&rule_index, None)?;
-        let ac_cache = AcAutomatonCache::new(&compiled_bundle)
-            .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
-
-        let runtime_lib = RuleLibraryRuntime {
-            compiled_bundle: Arc::new(compiled_bundle),
-            ac_cache: Arc::new(ac_cache),
-        };
-
+        let (runtime_lib, rule_index) = Self::build_from_rule_library(rule_lib, true)?;
         Ok(Self {
-            runtime_lib: Arc::new(runtime_lib),
+            runtime_lib,
             config,
-            rule_index: Some(Arc::new(rule_index)),
+            rule_index,
         })
     }
 
@@ -201,26 +161,12 @@ impl TechDetector {
     /// 成功返回检测器实例，失败返回 `RswError`
     #[cfg(feature = "embedded-rules")]
     pub fn with_embedded_rules(config: RuleConfig) -> RswResult<Self> {
-        let (runtime_lib, rule_index) = Self::with_embedded_rules_inner()?;
+        let (runtime_lib, rule_index) = Self::build_from_embedded()?;
         Ok(Self {
             runtime_lib,
             config,
             rule_index,
         })
-    }
-
-    fn with_embedded_rules_inner(
-    ) -> RswResult<(Arc<RuleLibraryRuntime>, Option<Arc<RuleLibraryIndex>>)> {
-        let compiled_bundle = crate::rswappalyzer_rules::EMBEDDED_COMPILED_BUNDLE.clone();
-        let ac_cache = AcAutomatonCache::new(&compiled_bundle)
-            .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
-
-        let runtime_lib = Arc::new(RuleLibraryRuntime {
-            compiled_bundle,
-            ac_cache: Arc::new(ac_cache),
-        });
-        // 内置规则无索引，返回 None
-        Ok((runtime_lib, None))
     }
 
     /// 基于预编译规则包创建检测器
@@ -229,76 +175,57 @@ impl TechDetector {
     ///
     /// # 参数
     /// - `compiled_bundle`: 预编译的规则包
-    /// - `rule_index`: 规则库索引
+    /// - `rule_index`: 规则库索引（可选）
     /// - `config`: 检测器配置
     ///
     /// # 返回值
     /// 成功返回检测器实例，失败返回 `RswError`
     pub fn with_compiled_lib(
         compiled_bundle: CompiledBundle,
-        rule_index: RuleLibraryIndex,
+        rule_index: Option<RuleLibraryIndex>,
         config: RuleConfig,
     ) -> RswResult<Self> {
-        let ac_cache = AcAutomatonCache::new(&compiled_bundle)
-            .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
-
-        let runtime_lib = RuleLibraryRuntime {
-            compiled_bundle: Arc::new(compiled_bundle),
-            ac_cache: Arc::new(ac_cache),
-        };
-
+        let (runtime_lib, rule_index) = Self::build_from_compiled(compiled_bundle, rule_index)?;
         Ok(Self {
-            runtime_lib: Arc::new(runtime_lib),
+            runtime_lib,
             config,
-            rule_index: Some(Arc::new(rule_index)),
+            rule_index,
         })
     }
 
     /// 从内存中的已编译规则字节创建检测器
+    ///
+    /// # 参数
+    /// - `bytes`: 已编译规则包的字节数据
+    /// - `config`: 检测器配置
+    ///
+    /// # 返回值
+    /// 成功返回检测器实例，失败返回 `RswError`
     pub fn from_compiled_bytes(bytes: &[u8], config: RuleConfig) -> RswResult<Self> {
-        // 1. 复用 RuleLoader 的唯一解析逻辑
-        let rule_loader = RuleLoader::new();
-        let compiled_bundle = rule_loader.load_compiled_bytes(bytes)?;
-        
-        // 2. 构建 AC 自动机缓存
-        let ac_cache = AcAutomatonCache::new(&compiled_bundle)
-            .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
-        
-        // 3. 构建运行时库
-        let runtime_lib = Arc::new(RuleLibraryRuntime {
-            compiled_bundle: Arc::new(compiled_bundle),
-            ac_cache: Arc::new(ac_cache),
-        });
-
+        let compiled_bundle = RuleLoader::new().load_compiled_bytes(bytes)?;
+        let (runtime_lib, rule_index) = Self::build_from_compiled(compiled_bundle, None)?;
         Ok(Self {
             runtime_lib,
             config,
-            rule_index: None,
+            rule_index,
         })
     }
 
     /// 从内存中缓存规则字节创建检测器
+    ///
+    /// # 参数
+    /// - `bytes`: 缓存规则库的字节数据
+    /// - `config`: 检测器配置
+    ///
+    /// # 返回值
+    /// 成功返回检测器实例，失败返回 `RswError`
     pub fn from_cached_bytes(bytes: &[u8], config: RuleConfig) -> RswResult<Self> {
-        // 1. 复用 RuleLoader 的唯一解析逻辑
-        let rule_loader = RuleLoader::new();
-        let rule_lib = rule_loader.load_cached_rule_bytes(bytes)?;
-        let rule_index_inner = RuleLibraryIndex::from_rule_library(&rule_lib)?;
-        let compiled_bundle = RuleIndexer::build_compiled_library(&rule_index_inner, None)?;
-
-        // 2. 构建 AC 自动机缓存
-        let ac_cache = AcAutomatonCache::new(&compiled_bundle)
-            .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
-        
-        // 3. 构建运行时库
-        let runtime_lib = Arc::new(RuleLibraryRuntime {
-            compiled_bundle: Arc::new(compiled_bundle),
-            ac_cache: Arc::new(ac_cache),
-        });
-
+        let rule_lib = RuleLoader::new().load_cached_rule_bytes(bytes)?;
+        let (runtime_lib, rule_index) = Self::build_from_rule_library(rule_lib, true)?;
         Ok(Self {
             runtime_lib,
             config,
-            rule_index: None,
+            rule_index,
         })
     }
 
@@ -314,7 +241,7 @@ impl TechDetector {
     ///
     /// # 返回值
     /// 成功返回检测结果 `DetectResult`，失败返回 `RswError`
-    #[inline(always)]
+    #[inline]
     pub fn detect(
         &self,
         headers: &HeaderMap,
@@ -336,7 +263,7 @@ impl TechDetector {
     /// # 返回值
     /// 成功返回检测结果 `DetectResult`，失败返回 `RswError`
     #[cfg(debug_assertions)]
-    #[inline(always)]
+    #[inline]
     pub fn detect_with_log(
         &self,
         headers: &HeaderMap,
@@ -346,10 +273,57 @@ impl TechDetector {
         super::detection::detect_with_log(self, headers, urls, body)
     }
 
+    // ========== 私有辅助方法 ==========
+
+    /// 从内置规则构建运行时组件
+    #[cfg(feature = "embedded-rules")]
+    fn build_from_embedded() -> RswResult<(Arc<RuleLibraryRuntime>, Option<Arc<RuleLibraryIndex>>)> {
+        let compiled_bundle = crate::rswappalyzer_rules::EMBEDDED_COMPILED_BUNDLE.clone();
+        let runtime_lib = Self::create_runtime(compiled_bundle)?;
+        Ok((runtime_lib, None))
+    }
+
+    /// 从已编译包构建运行时组件
+    fn build_from_compiled(
+        compiled_bundle: CompiledBundle,
+        rule_index: Option<RuleLibraryIndex>,
+    ) -> RswResult<(Arc<RuleLibraryRuntime>, Option<Arc<RuleLibraryIndex>>)> {
+        let runtime_lib = Self::create_runtime(Arc::new(compiled_bundle))?;
+        let rule_index = rule_index.map(Arc::new);
+        Ok((runtime_lib, rule_index))
+    }
+
+    /// 从规则库构建运行时组件（包含索引和编译）
+    fn build_from_rule_library(
+        rule_lib: RuleLibrary,
+        keep_index: bool,
+    ) -> RswResult<(Arc<RuleLibraryRuntime>, Option<Arc<RuleLibraryIndex>>)> {
+        let rule_index = RuleLibraryIndex::from_rule_library(&rule_lib)?;
+        let compiled_bundle = RuleIndexer::build_compiled_library(&rule_index, None)?;
+        let runtime_lib = Self::create_runtime(Arc::new(compiled_bundle))?;
+        
+        let rule_index = if keep_index {
+            Some(Arc::new(rule_index))
+        } else {
+            None
+        };
+        
+        Ok((runtime_lib, rule_index))
+    }
+
+    /// 创建规则库运行时（通用逻辑）
+    fn create_runtime(compiled_bundle: Arc<CompiledBundle>) -> RswResult<Arc<RuleLibraryRuntime>> {
+        let ac_cache = AcAutomatonCache::new(&compiled_bundle)
+            .map_err(|e| RswError::CoreError(CoreError::from(e)))?;
+        
+        Ok(Arc::new(RuleLibraryRuntime::new(compiled_bundle, Arc::new(ac_cache))))
+    }
+
     // ========== 只读属性访问器 ==========
+
     /// 获取检测器配置（只读）
     ///
-    /// 符合 Rust 封装原则，提供配置的只读访问，避免外部修改实例状态。
+    /// 提供配置的只读访问，避免外部修改实例状态。
     ///
     /// # 返回值
     /// 检测器配置的不可变引用
