@@ -51,7 +51,7 @@ pub(crate) fn aggregate_detection_results(
     // 遍历所有原始检测结果，转换为标准化结构
     for (rule_id, (confidence, version)) in detected {
         // 跳过未找到对应规则定义的无效结果
-        let Some(compiled_tech) = detector.runtime_lib.compiled_lib().tech_patterns.get(rule_id) else {
+        let Some(compiled_tech) = detector.runtime_lib.get_compiled_lib().tech_patterns.get(rule_id) else {
             continue;
         };
 
@@ -59,7 +59,7 @@ pub(crate) fn aggregate_detection_results(
         let categories = compiled_tech
             .category_ids
             .iter()
-            .filter_map(|id| detector.runtime_lib.compiled_lib().category_map.get(id).cloned())
+            .filter_map(|id| detector.runtime_lib.get_compiled_lib().category_map.get(id).cloned())
             .collect();
 
         // 获取当前技术隐含的其他技术依赖
