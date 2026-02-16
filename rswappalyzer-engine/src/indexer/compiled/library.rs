@@ -40,6 +40,52 @@ pub struct CompiledRuleLibrary {
     // pub known_tokens_by_scope: FxHashMap<Scope, FxHashSet<TokenId>>,
 }
 
+// impl CompiledRuleLibrary {
+//     /// 抽象遍历所有 pattern 的方法
+//     pub fn for_each_pattern<F: FnMut(&ExecutablePattern)>(&self, mut f: F) {
+//         // 遍历所有编译后的技术规则
+//         for (_tech_name, compiled_tech_rule) in &self.tech_patterns {
+//             // 处理简单的 Vec 类型 pattern
+//             self.process_pattern_vec(compiled_tech_rule.url_patterns.as_ref(), &mut f);
+//             self.process_pattern_vec(compiled_tech_rule.html_patterns.as_ref(), &mut f);
+//             self.process_pattern_vec(compiled_tech_rule.script_patterns.as_ref(), &mut f);
+
+//             // 处理 KV 类型的 pattern (HashMap<String, Vec<CompiledPattern>>)
+//             self.process_pattern_kv_map(compiled_tech_rule.meta_patterns.as_ref(), &mut f);
+//             self.process_pattern_kv_map(compiled_tech_rule.header_patterns.as_ref(), &mut f);
+//             self.process_pattern_kv_map(compiled_tech_rule.cookie_patterns.as_ref(), &mut f);
+//         }
+//     }
+
+//     /// 辅助方法：处理 Vec<CompiledPattern> 类型的 pattern 集合
+//     fn process_pattern_vec<F: FnMut(&ExecutablePattern)>(
+//         &self,
+//         patterns: Option<&Vec<CompiledPattern>>,
+//         f: &mut F,
+//     ) {
+//         if let Some(patterns) = patterns {
+//             for pattern in patterns {
+//                 f(&pattern.exec);
+//             }
+//         }
+//     }
+
+//     /// 辅助方法：处理 HashMap<String, Vec<CompiledPattern>> 类型的 pattern 集合
+//     fn process_pattern_kv_map<F: FnMut(&ExecutablePattern)>(
+//         &self,
+//         pattern_map: Option<&FxHashMap<String, Vec<CompiledPattern>>>,
+//         f: &mut F,
+//     ) {
+//         if let Some(pattern_map) = pattern_map {
+//             for (_key, patterns) in pattern_map {
+//                 for pattern in patterns {
+//                     f(&pattern.exec);
+//                 }
+//             }
+//         }
+//     }
+// }
+
 // ========== 序列化 Bundle（保证 ID 和映射池的一致性） ==========
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompiledBundle {
